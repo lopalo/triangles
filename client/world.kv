@@ -1,0 +1,28 @@
+#:kivy 1.7.2
+#:import W kivy.core.window.Window
+
+
+<Triangle>:
+    width: 50 
+    height: 25 
+    nose: [self.right, self.y + self.height / 2]
+    canvas.before:
+        PushMatrix
+    canvas:
+        Color:
+            rgb: 1, 1, 1
+        Rotate:
+            angle: self.angle
+            axis: 0, 0, 1
+            origin: self.center
+        Triangle:
+            points: self.pos + self.nose + [self.x, self.top] 
+    canvas.after:
+        PopMatrix
+
+<Background>:
+    canvas:
+        Color:
+            rgb: 1, 1, 1
+        Line:
+            rectangle: self.x, self.y, self.width, self.height

@@ -33,28 +33,28 @@ MainWidget:
         id: start_menu
 
 <LeftControl>:
-    center: (W.width / 6, W.width / 6)
+    center: W.height / 6, W.height / 6
     inner_x: self.center_x 
     inner_y: self.center_y
-    outer_rad: W.width / 10
+    outer_rad: W.height / 8
     inner_rad: self.outer_rad / 2.5
     canvas:
         Color:
-            rgb: (1, 1, 1)
+            rgb: 1, 1, 1
         Line:
-            circle: (self.center_x, self.center_y, self.outer_rad)
+            circle: self.center_x, self.center_y, self.outer_rad
         Ellipse:
-            pos: (self.inner_x - self.inner_rad, self.inner_y - self.inner_rad)
-            size: (self.inner_rad * 2, self.inner_rad * 2)
+            pos: self.inner_x - self.inner_rad, self.inner_y - self.inner_rad
+            size: self.inner_rad * 2, self.inner_rad * 2
 
 <RightControl>:
-    center: (W.width * (1 - 1. / 6), W.width / 6)
-    radius: W.width / 10
+    center: W.width - W.height / 6, W.height / 6
+    radius: W.height / 8
     canvas:
         Color:
-            rgb: (1, 1, 1)
+            rgb: 1, 1, 1
         Line:
-            circle: (self.center_x, self.center_y, self.radius)
+            circle: self.center_x, self.center_y, self.radius
 
 <UI>:
     LeftControl

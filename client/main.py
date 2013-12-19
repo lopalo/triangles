@@ -1,5 +1,4 @@
 from kivy.app import App
-from kivy.lang import Builder
 from kivy.uix.widget import Widget
 from kivy.uix.boxlayout import BoxLayout
 from kivy.properties import (
@@ -23,7 +22,6 @@ class LeftControl(Widget):
     inner_pos = ReferenceListProperty(inner_x, inner_y)
     inner_rad = NumericProperty(0)
     pressed = False
-
 
     def on_touch_down(self, touch):
         center_vect = Vector(self.center)
@@ -79,8 +77,11 @@ class UI(Widget):
 
 class GameWidget(Widget):
 
-    world = ObjectProperty(None)
     ui = ObjectProperty(None)
+
+    def activate_world(self, address, name):
+        World.activate(self)
+        World.do_connect(address, name)
 
 
 class MainWidget(Widget):
@@ -91,6 +92,7 @@ class MainWidget(Widget):
     def do_connect(self, address, name):
         self.remove_widget(self.start_menu)
         self.game_widget = GameWidget()
+        self.game_widget.activate_world(address, name)
         self.add_widget(self.game_widget)
 
 
@@ -98,7 +100,7 @@ class GameApp(App):
 
     def build(self):
         #TODO: remove
-        #self.root.do_connect('localhost:7777', 'anonymous')
+        self.root.do_connect('localhost:7777', 'anonymous')
         return self.root
 
 

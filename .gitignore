@@ -1,0 +1,7 @@
+*.pyc
+*~
+*-swp
+*draft*
+*.bak
+*.beam
+*.dump
