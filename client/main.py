@@ -5,14 +5,16 @@ from kivy.properties import (
     ObjectProperty, NumericProperty,
     ReferenceListProperty)
 from kivy.vector import Vector
+from kivy.logger import Logger
 
 from world import World
+from controller import Controller
 
 
 class StartMenu(BoxLayout):
 
-    def do_connect(self, *args, **kwargs):
-        self.parent.do_connect(*args, **kwargs)
+    def connect(self, *args, **kwargs):
+        self.parent.connect(*args, **kwargs)
 
 
 class LeftControl(Widget):
@@ -79,9 +81,8 @@ class GameWidget(Widget):
 
     ui = ObjectProperty(None)
 
-    def activate_world(self, address, name):
-        World.activate(self)
-        World.do_connect(address, name)
+    def activate_world(self, *args, **kwargs):
+        World.activate(self, *args, **kwargs)
 
 
 class MainWidget(Widget):
@@ -89,21 +90,24 @@ class MainWidget(Widget):
     start_menu = ObjectProperty(None)
     game_widget = ObjectProperty(None)
 
-    def do_connect(self, address, name):
+    def connect(self, address, name):
         self.remove_widget(self.start_menu)
+        Controller.connect(address)
         self.game_widget = GameWidget()
-        self.game_widget.activate_world(address, name)
+        self.game_widget.activate_world(name)
         self.add_widget(self.game_widget)
 
 
 class GameApp(App):
 
     def build(self):
+        Controller.activate()
         #TODO: remove
-        self.root.do_connect('localhost:7777', 'anonymous')
+        self.root.connect('localhost:7777', 'anonymous')
         return self.root
 
 
 
 if __name__ == '__main__':
+    Logger.setLevel(20) #INFO
     GameApp().run()
