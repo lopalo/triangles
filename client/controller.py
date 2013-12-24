@@ -1,28 +1,33 @@
 from kivy.clock import Clock
 from kivy.logger import Logger as log
 
-from network import Connection
+from network import FakeConnection
 
+UPDATE_PERIOD = 1. / 40.
+FAKE_PING = 0 # milliseconds
 
 class _Controller(object):
-    UPDATE_PERIOD = 1. / 40.
 
     def __init__(self):
         self._handlers = {}
         self._conn = None
 
     def send(self, cmd, args):
-        self._conn.send(cmd, args)
+        if FAKE_PING:
+            cb = lambda dt: self._conn.send(cmd, args)
+            Clock.schedule_once(cb, FAKE_PING / 1000.)
+        else:
+            self._conn.send(cmd, args)
         log.debug('Message sent: %s, %s', cmd, args)
 
     def activate(self):
-        Clock.schedule_interval(self.check_inbox, self.UPDATE_PERIOD)
+        Clock.schedule_interval(self.check_inbox, UPDATE_PERIOD)
 
     def deactivate(self):
         Clock.unschedule(self.check_inbox)
 
     def connect(self, address):
-        self._conn = conn = Connection(address)
+        self._conn = conn = FakeConnection(address)
         self._conn.connect()
 
     def add_handler(self, name, obj):
@@ -37,10 +42,15 @@ class _Controller(object):
         while data is not None:
             cmd, args = data['cmd'], data['args']
             log.debug('Message received: %s, %s', cmd, args)
-            handler_name, method = cmd.split('.')
+            handler_name, method_name = cmd.split('.')
             if handler_name in handlers:
                 handler = handlers[handler_name]
-                getattr(handler, 'handle_' + method)(**args)
+                meth = getattr(handler, 'handle_' + method_name)
+                if FAKE_PING:
+                    cb = lambda dt: meth(**args)
+                    Clock.schedule_once(cb, FAKE_PING / 1000.)
+                else:
+                    meth(**args)
             else:
                 log.warning('No handler for command "%s"', cmd)
             data = self._conn.receive()
