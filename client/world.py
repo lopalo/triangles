@@ -1,12 +1,11 @@
 from kivy.lang import Builder
 from kivy.properties import ListProperty, NumericProperty
 from kivy.uix.widget import Widget
-from kivy.clock import Clock
 from kivy.vector import Vector
 from kivy.animation import Animation
 from kivy.core.window import Window
 
-from controller import Controller
+from controller import Controller, UserCommands
 
 
 INIT_OBJECT_TTL = 10
@@ -128,37 +127,6 @@ class MovableObject(TemporaryObject):
 class Triangle(MovableObject):
     nose = ListProperty([0, 0])
     angle = NumericProperty(0)
-
-
-class UserCommands(object):
-
-    def __init__(self, uid, server_tick):
-        self._uid = uid
-        self._server_tick = server_tick
-        self._fire = False
-        self._move_vector = (0, 0) # length, angle
-
-    def move_vector(self, length, angle):
-        if not length and not angle:
-            self._move_vector = (length, self._move_vector[1])
-        else:
-            self._move_vector = (length, angle)
-
-    def fire(self, state):
-        self._fire = state
-
-    def activate(self):
-        Clock.schedule_interval(self.send, self._server_tick / 1000.)
-
-    def deactivate(self):
-        Clock.unschedule(self.send)
-
-    def send(self, dt):
-        data = dict(cmd='world.user_commands',
-                    args=dict(move_vector=self._move_vector,
-                              fire=self._fire))
-        Controller.send(**data)
-
 
 
 World = _World()

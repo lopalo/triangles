@@ -1,4 +1,5 @@
 import json
+import socket
 
 from threading import Thread
 from collections import deque
@@ -37,12 +38,12 @@ class Connection(object):
             self._inbox.append(json.loads(msg.decode('utf-8')))
         def on_open(ws):
             Thread(target=self._sender, args=()).start()
-        self._web_sock = websocket.WebSocketApp(self._address,
-                                                on_message=on_message,
-                                                on_open=on_open,
-                                                on_error=self.disconnect,
-                                                on_close=self.disconnect)
-        self._web_sock.run_forever()
+        self._web_sock = WebSocketApp(self._address,
+                                      on_message=on_message,
+                                      on_open=on_open,
+                                      on_error=self.disconnect,
+                                      on_close=self.disconnect)
+        self._web_sock.run_forever(sockopt=(sockopt.TCP_NODELAY,))
 
     def connect(self):
         Thread(target=self._receiver, args=()).start()
@@ -97,7 +98,7 @@ class BlackBox(object):
                         level_size=(1000, 700))
             inbox.append(dict(cmd='world.init', args=args))
             #TODO: send info for player's object
-        elif cmd == 'world.user_commands':
+        elif cmd == 'user.commands':
             length, angle = args['move_vector']
             speed = Vector(1, 0).rotate(angle) * length * self.SPEED_FACTOR
             self._user_pos += speed * self.SERVER_TICK

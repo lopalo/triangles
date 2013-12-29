@@ -6,6 +6,37 @@ from network import FakeConnection
 UPDATE_PERIOD = 1. / 40.
 FAKE_PING = 0 # milliseconds
 
+
+class UserCommands(object):
+
+    def __init__(self, uid, server_tick):
+        self._uid = uid
+        self._server_tick = server_tick
+        self._fire = False
+        self._move_vector = (0, 0) # length, angle
+
+    def move_vector(self, length, angle):
+        if not length and not angle:
+            self._move_vector = (length, self._move_vector[1])
+        else:
+            self._move_vector = (length, angle)
+
+    def fire(self, state):
+        self._fire = state
+
+    def activate(self):
+        Clock.schedule_interval(self.send, self._server_tick / 1000.)
+
+    def deactivate(self):
+        Clock.unschedule(self.send)
+
+    def send(self, dt):
+        data = dict(cmd='user.commands',
+                    args=dict(move_vector=self._move_vector,
+                              fire=self._fire))
+        Controller.send(**data)
+
+
 class _Controller(object):
 
     def __init__(self):

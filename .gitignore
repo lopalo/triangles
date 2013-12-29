@@ -4,4 +4,8 @@
 *draft*
 *.bak
 *.beam
-*.dump
+erl_crash.dump
+*/ebin
+*/deps
+*/logs
+*variables*
