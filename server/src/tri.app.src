@@ -1,0 +1,13 @@
+{application, tri,
+ [
+  {description, "WebSocket server for the 'Triangles'"},
+  {vsn, "0.1.0"},
+  {registered, [tri_server, tri_world]},
+  {applications, [
+      kernel,
+      stdlib,
+      cowboy
+  ]},
+  {mod, {tri_app, []}},
+  {env, [{port, 9000}]}
+ ]}.
