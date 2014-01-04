@@ -1,17 +1,23 @@
 REBAR = `which rebar`
 
-all: deps compile
+all: compile
 
 deps:
 	@($(REBAR) get-deps)
 
-compile: clean
+compile_all: clean_all
 	@($(REBAR) compile)
 
-clean:
+clean_all:
 	@($(REBAR) clean)
 
-test:
+compile: clean
+	@($(REBAR) compile skip_deps=true)
+
+clean:
+	@($(REBAR) clean skip_deps=true)
+
+test: compile
 	@($(REBAR) ct skip_deps=true)
 
 run:
@@ -20,4 +26,4 @@ run:
 dev_run:
 	@(erl -pa ebin deps/*/ebin -s tri_main dev_start)
 
-.PHONY: all deps compile clean run dev_run test
+.PHONY: all deps compile_all clean_all compile clean run dev_run test

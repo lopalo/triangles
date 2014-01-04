@@ -13,8 +13,8 @@ dev_start() ->
 
 
 stop() ->
-    ok = sync:stop(),
-    ok = stop_apps(lists:reverse(?APPS)).
+    sync:stop(),
+    stop_apps(lists:reverse(?APPS)).
 
 
 start_apps([]) -> ok;
