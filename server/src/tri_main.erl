@@ -19,10 +19,10 @@ stop() ->
 
 start_apps([]) -> ok;
 start_apps([App|Apps]) ->
-    case application:start(App) of 
-        ok -> 
+    case application:start(App) of
+        ok ->
             start_apps(Apps);
-        {error, {already_started, App}} -> 
+        {error, {already_started, App}} ->
             start_apps(Apps)
     end.
 

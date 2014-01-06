@@ -4,7 +4,7 @@ import socket
 from threading import Thread
 from collections import deque
 from kivy.vector import Vector
-#from websocket import WebSocketApp
+from websocket import WebSocketApp
 from kivy.logger import Logger as log
 
 
@@ -31,7 +31,7 @@ class Connection(object):
             if not outbox:
                 continue
             output = json.dumps(outbox.popleft())
-            self._web_sock.send(outbox.encode('utf-8'))
+            self._web_sock.send(output.encode('utf-8'))
 
     def _receiver(self):
         def on_message(ws, msg):
@@ -40,10 +40,9 @@ class Connection(object):
             Thread(target=self._sender, args=()).start()
         self._web_sock = WebSocketApp(self._address,
                                       on_message=on_message,
-                                      on_open=on_open,
-                                      on_error=self.disconnect,
+                                      on_open=on_open, on_error=self.disconnect,
                                       on_close=self.disconnect)
-        self._web_sock.run_forever(sockopt=(sockopt.TCP_NODELAY,))
+        self._web_sock.run_forever(sockopt=(socket.TCP_NODELAY,))
 
     def connect(self):
         Thread(target=self._receiver, args=()).start()
@@ -111,7 +110,8 @@ class BlackBox(object):
             inbox.append(msg)
         elif cmd == 'world.get_objects_info':
             idents = args['idents']
-            data = {"user:55": {"pos": self._user_pos - Vector(100, 100),
+            data = {"user:55": {"type": "triangle",
+                                "pos": self._user_pos - Vector(100, 100),
                                 "angle": self._user_angle - 70}}
             msg = dict(cmd='world.objects_info', args=dict(objects=data))
             inbox.append(msg)

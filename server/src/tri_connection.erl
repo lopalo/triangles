@@ -11,10 +11,10 @@
 -export([send/2, create_player/2]).
 
 
+% behaviour callbacks
 init({tcp, http}, _Req,  []) ->
     {upgrade, protocol, cowboy_websocket}.
 
-%TODO:store player's pid in state
 websocket_init(tcp, Req, []) ->
     {ok, Req, none, hibernate}.
 
@@ -34,7 +34,7 @@ websocket_terminate(_Reason, _Req, _PlayerPid) ->
     ok.
 
 
-
+% external inteface
 send(ConnPid, Data) ->
     ConnPid ! {send, Data},
     ok.

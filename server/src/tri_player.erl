@@ -3,22 +3,80 @@
 -behaviour(gen_server).
 
 -export([init/1, handle_call/3, handle_cast/2, terminate/2]).
--export([start_link/1]).
+-export([start_link/1, client_cmd/3, tick/2, get_client_info/1]).
+
+-include("settings.hrl").
 
 
+-record(player, {uid, name, angle=0, pos=[0, 0], speed=[0, 0]}).
+
+
+% behaviour callbacks
 init([ConnPid, PlayerData]) ->
-    tri_world:add_player(ConnPid),
-    {ok, undefined_state}.
+    tri_world:add_player(pid_to_id(), ConnPid),
+    Player = #player{name=dict:fetch(name, PlayerData)},
+    {ok, Player}.
 
-handle_call(_Arg, _From, _State) ->
+
+handle_call({tick, DT}, _From, #player{speed=Speed, pos=Pos} = Player) ->
+    [CX, CY] = Pos,
+    [SX, SY] = Speed,
+    X = CX + SX * DT * ?SPEED_FACTOR,
+    Y = CY + SY * DT * ?SPEED_FACTOR,
+    NewPos = [X, Y],
+    {reply, NewPos, Player#player{pos=NewPos}};
+
+handle_call(get_client_info, _From,
+        #player{name=Name, pos=Pos, angle=Angle} = Player) ->
+    Info = [
+        {type, triangle},
+        {name, Name},
+        {pos, Pos},
+        {angle, Angle}
+    ],
+    {reply, Info, Player}.
+
+
+handle_cast({client_cmd, {Cmd, Args}}, Player) ->
+    NewPlayer = handle_client_cmd(Cmd, Args, Player),
+    {noreply, NewPlayer}.
+
+
+terminate(_Reason, _Player) ->
     ok.
 
-handle_cast(_Arg, _State) ->
-    ok.
 
-terminate(_Reason, _State) ->
-    ok.
+% internal functions
+handle_client_cmd(commands, Args, Player) ->
+    [Length, Angle] = dict:fetch(move_vector, Args),
+    Player#player{
+        angle=dict:fetch(angle, Args),
+        speed=vect_transform(Length, Angle)
+    }.
+
+vect_transform(Length, Angle) ->
+    Rad = Angle / 57.3,
+    X = Length * math:cos(Rad),
+    Y = Length * math:sin(Rad),
+    [X, Y].
+
+pid_to_id() ->
+    list_to_binary("user:" ++ pid_to_list(self())).
 
 
+% external interface
 start_link(Data) ->
     gen_server:start_link(?MODULE, [self(), Data], []).
+
+client_cmd(PlayerPid, Cmd, Args) ->
+    gen_server:cast(PlayerPid, {client_cmd, {Cmd, Args}}).
+
+tick(PlayerPid, Dt) ->
+    gen_server:call(PlayerPid, {tick, Dt}).
+
+get_client_info(PlayerdPid) ->
+    gen_server:call(PlayerdPid, get_client_info).
+
+
+
+

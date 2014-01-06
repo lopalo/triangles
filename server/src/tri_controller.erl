@@ -8,18 +8,18 @@ handle(Data, PlayerPid) ->
     {args, Args} = lists:keyfind(args, 1, NewData),
     CmdParts = re:split(Cmd, <<"\\.">>, [{return, binary}]),
     Fun = fun(Bin) -> binary_to_atom(Bin, utf8) end,
-    handle(lists:map(Fun, CmdParts), tri_utils:atom_keys(Args), PlayerPid).
+    ArgDct = dict:from_list(tri_utils:atom_keys(Args)),
+    handle(lists:map(Fun, CmdParts), ArgDct, PlayerPid).
 
-handle([world, Cmd], Args, _PlayerdPid) ->
+handle([world, Cmd], Args, _PlayerPid) ->
     tri_world:client_cmd(Cmd, Args);
+handle([user, Cmd], Args, PlayerPid) ->
+    tri_player:client_cmd(PlayerPid, Cmd, Args);
 handle([echo], Args, _PlayerPid) ->
-    {text, Text} = lists:keyfind(text, 1, Args),
+    Text = dict:fetch(text, Args),
     ReplyText = io_lib:format("Echo: ~s", [Text]),
     Reply = unicode:characters_to_binary(ReplyText, utf8),
-    ok = send(self(), echo_reply, [{text, Reply}]);
-handle([user, _Cmd], _Args, _PlayerPid) ->
-    %TODO: implement
-    ok.
+    ok = send(self(), echo_reply, [{text, Reply}]).
 
 
 send(ConnPid, Cmd, Args) ->

@@ -5,6 +5,7 @@
 -export([connect/1, send/3, recv_any/2, recv/3, flush/1]).
 
 
+% behaviour callbacks
 init([Pid], _ConnState) ->
     {ok, Pid}.
 
@@ -25,7 +26,7 @@ websocket_info({send, Cmd, Args}, _ConnState, RecvPid) ->
 websocket_terminate(_Reason, _ConnState, _State) ->
     ok.
 
-
+% external interface
 connect(Address) ->
     {ok, Pid} = websocket_client:start_link(Address, ?MODULE, [self()]),
     Pid.
