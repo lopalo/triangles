@@ -1,18 +1,19 @@
--module(basic_SUITE).
+-module(func_SUITE).
 -include("ct.hrl").
 
 -export([all/0, init_per_suite/1, end_per_suite/1,
          init_per_testcase/2, end_per_testcase/2]).
 -export([test_echo/1,
          test_get_objects_info/1,
-         test_start/1]).
+         test_start/1,
+         test_tick/1]).
 
 
 -define(ADDRESS, "ws://localhost:9000").
 
 
 all() ->
-    [test_echo, test_start, test_get_objects_info].
+    [test_echo, test_start, test_get_objects_info, test_tick].
 
 init_per_suite(Config) ->
     Config.
@@ -63,18 +64,33 @@ test_get_objects_info(_Config) ->
     {ok, [{objects, Objs}]} = tri_test_cli:recv(U1, 'world.objects_info', 1000),
     [
         {Uid1,
-            [{<<"type">>,<<"triangle">>},
-             {<<"name">>,<<"player1">>},
-             {<<"pos">>,[0,0]},
-             {<<"angle">>,0}]
+            [{<<"type">>, <<"triangle">>},
+             {<<"name">>, <<"player1">>},
+             {<<"pos">>, [0, 0]},
+             {<<"angle">>, 0}]
         },
         {Uid2,
-             [{<<"type">>,<<"triangle">>},
-              {<<"name">>,<<"player2">>},
-              {<<"pos">>,[0,0]},
-              {<<"angle">>,0}]
+             [{<<"type">>, <<"triangle">>},
+              {<<"name">>, <<"player2">>},
+              {<<"pos">>, [0, 0]},
+              {<<"angle">>, 0}]
         }
     ] = Objs.
+
+test_tick(_Config) ->
+    {Uid1, _U1} = make_player(<<"player1">>),
+    {Uid2, U2} = make_player(<<"player2">>),
+    MoveVect = [3, 30],
+    tri_test_cli:send(U2, 'user.commands', [{move_vector, MoveVect}]),
+    tri_test_cli:recv(U2, 'world.tick', 1000),
+    {ok, [{tick_data, Data}]} = tri_test_cli:recv(U2, 'world.tick', 1000),
+    [
+        {Uid1, [{<<"pos">>, [0, 0]},{<<"angle">>, 0}]},
+        {Uid2, [{<<"pos">>, [104, 60]}, {<<"angle">>, 30}]}
+    ] = Data.
+
+
+
 
 
 

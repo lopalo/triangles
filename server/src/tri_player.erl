@@ -4,6 +4,7 @@
 
 -export([init/1, handle_call/3, handle_cast/2, terminate/2]).
 -export([start_link/1, client_cmd/3, tick/2, get_client_info/1]).
+-export([make_player/5]).
 
 -include("settings.hrl").
 
@@ -18,13 +19,14 @@ init([ConnPid, PlayerData]) ->
     {ok, Player}.
 
 
-handle_call({tick, DT}, _From, #player{speed=Speed, pos=Pos} = Player) ->
+handle_call({tick, DT}, _From,
+        #player{speed=Speed, pos=Pos, angle=Angle} = Player) ->
     [CX, CY] = Pos,
     [SX, SY] = Speed,
-    X = CX + SX * DT * ?SPEED_FACTOR,
-    Y = CY + SY * DT * ?SPEED_FACTOR,
+    X = trunc(CX + SX * DT * ?SPEED_FACTOR),
+    Y = trunc(CY + SY * DT * ?SPEED_FACTOR),
     NewPos = [X, Y],
-    {reply, NewPos, Player#player{pos=NewPos}};
+    {reply, {ok, NewPos, Angle}, Player#player{pos=NewPos}};
 
 handle_call(get_client_info, _From,
         #player{name=Name, pos=Pos, angle=Angle} = Player) ->
@@ -50,7 +52,7 @@ terminate(_Reason, _Player) ->
 handle_client_cmd(commands, Args, Player) ->
     [Length, Angle] = dict:fetch(move_vector, Args),
     Player#player{
-        angle=dict:fetch(angle, Args),
+        angle=Angle,
         speed=vect_transform(Length, Angle)
     }.
 
@@ -78,5 +80,7 @@ get_client_info(PlayerdPid) ->
     gen_server:call(PlayerdPid, get_client_info).
 
 
-
+% test function
+make_player(Uid, Name, Angle, Pos, Speed) ->
+    #player{uid=Uid, name=Name, angle=Angle, pos=Pos, speed=Speed}.
 

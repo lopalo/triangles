@@ -1,5 +1,5 @@
 -module(tri_controller).
--export([handle/2, send/3]).
+-export([handle/2, send/3, broadcast/3]).
 
 
 handle(Data, PlayerPid) ->
@@ -25,5 +25,10 @@ handle([echo], Args, _PlayerPid) ->
 send(ConnPid, Cmd, Args) ->
     Data = [{cmd, Cmd}, {args, Args}],
     tri_connection:send(ConnPid, Data).
+
+broadcast(ConnPids, Cmd, Args) ->
+    Send = fun(ConnPid) -> send(ConnPid, Cmd, Args) end,
+    lists:foreach(Send, ConnPids).
+
 
 
