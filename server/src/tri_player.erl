@@ -23,8 +23,9 @@ handle_call({tick, DT}, _From,
         #player{speed=Speed, pos=Pos, angle=Angle} = Player) ->
     [CX, CY] = Pos,
     [SX, SY] = Speed,
-    X = trunc(CX + SX * DT * ?SPEED_FACTOR),
-    Y = trunc(CY + SY * DT * ?SPEED_FACTOR),
+    {ok, SpeedFactor} = application:get_env(tri, speed_factor),
+    X = trunc(CX + SX * DT * SpeedFactor),
+    Y = trunc(CY + SY * DT * SpeedFactor),
     NewPos = [X, Y],
     {reply, {ok, NewPos, Angle}, Player#player{pos=NewPos}};
 

@@ -11,6 +11,10 @@ all() ->
     [test_player_tick].
 
 init_per_suite(Config) ->
+    application:set_env(tri, port, 9000),
+    application:set_env(tri, server_tick, 200),
+    application:set_env(tri, level_size, [1000, 700]),
+    application:set_env(tri, speed_factor, 0.1),
     Config.
 
 end_per_suite(Config) ->

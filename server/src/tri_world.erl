@@ -13,7 +13,8 @@
 init(_Args) ->
     Players = ets:new(players, [set, private, {keypos, 1}]),
     Bullets = ets:new(bullets, [set, private, {keypos, 1}]),
-    timer:send_after(?SERVER_TICK, tick),
+    {ok, ServerTick} = application:get_env(tri, server_tick),
+    timer:send_after(ServerTick, tick),
     {ok, #state{players=Players, bullets=Bullets, last_update=ms()}}.
 
 handle_cast({client_cmd, {Cmd, Args, ConnPid}}, State) ->
@@ -30,7 +31,8 @@ handle_info({'DOWN', Ref, process, Pid, _Reason}, State) ->
     ets:delete(State#state.players, Pid),
     {noreply, State};
 handle_info(tick, State) ->
-    timer:send_after(?SERVER_TICK, tick),
+    {ok, ServerTick} = application:get_env(tri, server_tick),
+    timer:send_after(ServerTick, tick),
     {TickData, NewState} = handle_tick(State),
     ConnPids = [C || [C] <- ets:match(State#state.players, {'_', '_', '$3'})],
     tri_controller:broadcast(ConnPids, 'world.tick', [{tick_data, TickData}]),
@@ -63,10 +65,12 @@ handle_client_cmd(get_objects_info, Args, ConnPid, State) ->
 
 
 send_init(ConnPid, PlayerId) ->
+    {ok, ServerTick} = application:get_env(tri, server_tick),
+    {ok, LevelSize} = application:get_env(tri, level_size),
     StartData = [
         {uid, PlayerId},
-        {server_tick, ?SERVER_TICK},
-        {level_size, ?LEVEL_SIZE}
+        {server_tick, ServerTick},
+        {level_size, LevelSize}
     ],
     tri_controller:send(ConnPid, 'world.init', StartData).
 

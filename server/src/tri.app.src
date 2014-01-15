@@ -9,5 +9,10 @@
       cowboy
   ]},
   {mod, {tri_app, []}},
-  {env, [{port, 9000}]}
+  {env, [
+      {port, 9000},
+      {server_tick, 500},
+      {level_size, [1000, 700]},
+      {speed_factor, 0.1}
+  ]}
  ]}.

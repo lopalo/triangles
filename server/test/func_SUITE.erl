@@ -3,17 +3,19 @@
 
 -export([all/0, init_per_suite/1, end_per_suite/1,
          init_per_testcase/2, end_per_testcase/2]).
--export([test_echo/1,
+-export([empty/1,
+         test_echo/1,
          test_get_objects_info/1,
          test_start/1,
          test_tick/1]).
 
 
--define(ADDRESS, "ws://localhost:9000").
+-define(PORT, 9777).
+-define(ADDRESS, "ws://localhost:" ++ integer_to_list(?PORT)).
 
 
 all() ->
-    [test_echo, test_start, test_get_objects_info, test_tick].
+    [empty, test_echo, test_start, test_get_objects_info, test_tick].
 
 init_per_suite(Config) ->
     Config.
@@ -22,6 +24,10 @@ end_per_suite(Config) ->
     Config.
 
 init_per_testcase(_, Config) ->
+    application:set_env(tri, port, ?PORT),
+    application:set_env(tri, server_tick, 200),
+    application:set_env(tri, level_size, [1000, 700]),
+    application:set_env(tri, speed_factor, 0.1),
     tri_main:start(),
     Config.
 
@@ -38,6 +44,10 @@ make_player(Name) when is_binary(Name)->
     {Uid, U}.
 
 % test cases
+
+empty(_Config) -> ok.
+
+
 test_echo(_Config) ->
     U = tri_test_cli:connect(?ADDRESS),
     tri_test_cli:send(U, echo, [{text, "Лопата"}]),
@@ -87,7 +97,7 @@ test_tick(_Config) ->
     [
         {Uid1, [{<<"pos">>, [0, 0]},{<<"angle">>, 0}]},
         {Uid2, [{<<"pos">>, [104, 60]}, {<<"angle">>, 30}]}
-    ] = Data.
+    ] = lists:sort(Data).
 
 
 
