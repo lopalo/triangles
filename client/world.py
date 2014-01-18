@@ -4,6 +4,7 @@ from kivy.uix.widget import Widget
 from kivy.vector import Vector
 from kivy.animation import Animation
 from kivy.core.window import Window
+from kivy.logger import Logger as log
 
 from controller import Controller, UserCommands
 
@@ -33,6 +34,9 @@ class _World(object):
         self._widget.parent.remove_widget(self._widget)
 
     def move_vector(self, length, angle):
+        if self._user_commands is None:
+            log.warning("Cannot accept user's command")
+            return
         self._user_commands.move_vector(length, angle)
 
     def fire(self, state):

@@ -18,14 +18,14 @@ init({tcp, http}, _Req,  []) ->
 websocket_init(tcp, Req, []) ->
     {ok, Req, none, hibernate}.
 
-websocket_handle({binary, Msg}, Req, PlayerPid) ->
+websocket_handle({text, Msg}, Req, PlayerPid) ->
     Data = tri_utils:unpack_json(jiffy:decode(Msg)),
     tri_controller:handle(Data, PlayerPid),
     {ok, Req, PlayerPid}.
 
 websocket_info({send, Data}, Req, PlayerPid) ->
     Msg = jiffy:encode(tri_utils:pack_json(Data)),
-    {reply, {binary, Msg}, Req, PlayerPid, hibernate};
+    {reply, {text, Msg}, Req, PlayerPid, hibernate};
 websocket_info({create_player, Data}, Req, none) ->
     {ok, PlayerPid} = tri_player:start_link(Data),
     {ok, Req, PlayerPid}.

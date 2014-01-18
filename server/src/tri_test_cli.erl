@@ -9,7 +9,7 @@
 init([Pid], _ConnState) ->
     {ok, Pid}.
 
-websocket_handle({binary, Msg}, _ConnState, RecvPid) ->
+websocket_handle({text, Msg}, _ConnState, RecvPid) ->
     Data = tri_utils:unpack_json(jiffy:decode(Msg)),
     NewData = tri_utils:atom_keys(Data),
     {cmd, Cmd} = lists:keyfind(cmd, 1, NewData),
@@ -21,7 +21,7 @@ websocket_handle({binary, Msg}, _ConnState, RecvPid) ->
 websocket_info({send, Cmd, Args}, _ConnState, RecvPid) ->
     Data = [{cmd, Cmd}, {args, Args}],
     Msg = jiffy:encode(tri_utils:pack_json(Data)),
-    {reply, {binary, Msg}, RecvPid}.
+    {reply, {text, Msg}, RecvPid}.
 
 websocket_terminate(_Reason, _ConnState, _State) ->
     ok.

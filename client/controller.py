@@ -1,7 +1,7 @@
 from kivy.clock import Clock
 from kivy.logger import Logger as log
 
-from network import FakeConnection
+from network import Connection
 
 UPDATE_PERIOD = 1. / 40.
 FAKE_PING = 0 # milliseconds
@@ -57,9 +57,9 @@ class _Controller(object):
     def deactivate(self):
         Clock.unschedule(self.check_inbox)
 
-    def connect(self, address):
-        self._conn = conn = FakeConnection(address)
-        self._conn.connect()
+    def connect(self, address, **kwargs):
+        self._conn = Connection(address)
+        self._conn.connect(**kwargs)
 
     def add_handler(self, name, obj):
         self._handlers[name] = obj
@@ -68,8 +68,11 @@ class _Controller(object):
         del self._handlers[name]
 
     def check_inbox(self, dt):
+        conn = self._conn
+        if conn is None:
+            return
         handlers = self._handlers
-        data = self._conn.receive()
+        data = conn.receive()
         while data is not None:
             cmd, args = data['cmd'], data['args']
             log.debug('Message received: %s, %s', cmd, args)
@@ -84,7 +87,7 @@ class _Controller(object):
                     meth(**args)
             else:
                 log.warning('No handler for command "%s"', cmd)
-            data = self._conn.receive()
+            data = conn.receive()
 
 
 Controller = _Controller()

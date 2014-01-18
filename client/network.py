@@ -1,11 +1,16 @@
 import json
 import socket
+import time
 
 from threading import Thread
 from collections import deque
 from kivy.vector import Vector
-from websocket import WebSocketApp
+from websocket import WebSocketApp, setdefaulttimeout
 from kivy.logger import Logger as log
+
+
+class ConnectionTimeout(Exception):
+    pass
 
 
 class Connection(object):
@@ -37,24 +42,38 @@ class Connection(object):
         def on_message(ws, msg):
             self._inbox.append(json.loads(msg.decode('utf-8')))
         def on_open(ws):
-            Thread(target=self._sender, args=()).start()
+            self._connected = True
+            send_thread = Thread(target=self._sender, args=())
+            send_thread.setDaemon(True)
+            send_thread.start()
         self._web_sock = WebSocketApp(self._address,
                                       on_message=on_message,
-                                      on_open=on_open, on_error=self.disconnect,
+                                      on_open=on_open,
+                                      on_error=self.disconnect,
                                       on_close=self.disconnect)
-        self._web_sock.run_forever(sockopt=(socket.TCP_NODELAY,))
+        sockopt = ((socket.IPPROTO_TCP, socket.TCP_NODELAY, 1),)
+        self._web_sock.run_forever(sockopt=sockopt)
 
-    def connect(self):
-        Thread(target=self._receiver, args=()).start()
+    def connect(self, wait=False, timeout=2000):
+        timeout = float(timeout) / 1000.
+        setdefaulttimeout(timeout)
+        receive_thread = Thread(target=self._receiver, args=())
+        receive_thread.setDaemon(True)
+        receive_thread.start()
+        if not wait:
+            return
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            if self._connected:
+                return
+        raise ConnectionTimeout
 
-    def disconnect(self, reason=None):
+    def disconnect(self, web_sock):
         self._connected = False
-        if reason is not None:
-            log.info('Connection closed, reason: %s', reason)
-        else:
-            log.info('Connection closed')
-        #TODO: popup
+        log.info('Connection closed')
 
+
+#### For testing without server ###
 
 class FakeConnection(object):
 
@@ -79,7 +98,6 @@ class FakeConnection(object):
 
 
 class BlackBox(object):
-    #TODO: change this mock to connection with server
     SPEED_FACTOR = 0.1
     SERVER_TICK = 200 # milliseconds
 

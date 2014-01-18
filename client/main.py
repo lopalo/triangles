@@ -1,3 +1,7 @@
+import os
+import json
+import logging
+
 from kivy.app import App
 from kivy.uix.widget import Widget
 from kivy.uix.boxlayout import BoxLayout
@@ -92,7 +96,7 @@ class MainWidget(Widget):
 
     def connect(self, address, name):
         self.remove_widget(self.start_menu)
-        Controller.connect(address)
+        Controller.connect(address, wait=True)
         self.game_widget = GameWidget()
         self.game_widget.activate_world(name)
         self.add_widget(self.game_widget)
@@ -100,14 +104,25 @@ class MainWidget(Widget):
 
 class GameApp(App):
 
+    def __init__(self, start_args=None, **kwargs):
+        self.start_args = start_args
+        super(GameApp, self).__init__(**kwargs)
+
     def build(self):
         Controller.activate()
-        #TODO: remove
-        self.root.connect('localhost:7777', 'anonymous')
+        start_args = self.start_args
+        if start_args is not None:
+            self.root.connect(start_args['address'], start_args['name'])
         return self.root
 
 
 
 if __name__ == '__main__':
-    Logger.setLevel(20) #INFO
-    GameApp().run()
+    Logger.setLevel(logging.INFO)
+    start_args = None
+    if 'TRI_START_ARGS' in os.environ:
+        with open(os.environ['TRI_START_ARGS']) as f:
+            start_args = json.load(f)
+    GameApp(start_args=start_args).run()
+
+
