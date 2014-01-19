@@ -28,7 +28,7 @@ handle_cast({add_player, {PlayerId, PlayerPid, ConnPid} = Info}, State) ->
 
 handle_info({'DOWN', Ref, process, Pid, _Reason}, State) ->
     erlang:demonitor(Ref, [flush]),
-    ets:delete(State#state.players, Pid),
+    ets:match_delete(State#state.players, {'_', Pid, '_'}),
     {noreply, State};
 handle_info(tick, State) ->
     {ok, ServerTick} = application:get_env(tri, server_tick),
@@ -84,9 +84,14 @@ handle_tick(State) ->
     NewState = State#state{last_update=Now},
     DT = max(Now - LastUpdate, 0),
     PlayersTick = fun([PlayerId, PlayerPid], Data) ->
-        {ok, Pos, Angle} = tri_player:tick(PlayerPid, DT),
-        PlayerData = [{pos, Pos}, {angle, Angle}],
-        [{PlayerId, PlayerData}|Data]
+        try tri_player:tick(PlayerPid, DT) of
+            {ok, Pos, Angle} ->
+                PlayerData = [{pos, Pos}, {angle, Angle}],
+                [{PlayerId, PlayerData}|Data]
+        catch
+            exit:{noproc, _} ->
+                Data
+        end
     end,
     Players = ets:match(State#state.players, {'$1', '$2', '_'}),
     TickData = lists:foldl(PlayersTick, [], Players),

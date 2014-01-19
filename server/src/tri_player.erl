@@ -3,7 +3,7 @@
 -behaviour(gen_server).
 
 -export([init/1, handle_call/3, handle_cast/2, terminate/2]).
--export([start_link/1, client_cmd/3, tick/2, get_client_info/1]).
+-export([start_link/1, stop/1, client_cmd/3, tick/2, get_client_info/1]).
 -export([make_player/5]).
 
 -include("settings.hrl").
@@ -42,7 +42,9 @@ handle_call(get_client_info, _From,
 
 handle_cast({client_cmd, {Cmd, Args}}, Player) ->
     NewPlayer = handle_client_cmd(Cmd, Args, Player),
-    {noreply, NewPlayer}.
+    {noreply, NewPlayer};
+handle_cast(stop, Player) ->
+    {stop, normal, Player}.
 
 
 terminate(_Reason, _Player) ->
@@ -70,6 +72,9 @@ pid_to_id() ->
 % external interface
 start_link(Data) ->
     gen_server:start_link(?MODULE, [self(), Data], []).
+
+stop(PlayerPid) ->
+    gen_server:cast(PlayerPid, stop).
 
 client_cmd(PlayerPid, Cmd, Args) ->
     gen_server:cast(PlayerPid, {client_cmd, {Cmd, Args}}).

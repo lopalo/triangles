@@ -105,14 +105,14 @@ class _World(object):
                       duration=duration).start(obj)
         if unknown_objects:
             Controller.send(cmd="world.get_objects_info",
-                            args=dict(idents=unknown_objects))
+                            args=dict(idents=list(unknown_objects)))
         for ident in set(objects) - set(tick_data):
             obj = objects[ident]
             if not isinstance(obj, TemporaryObject):
                 continue
             obj.ttl -= 1
             if obj.ttl <= 0:
-                self.remove_object(ident)
+                self._remove_object(ident)
 
 
 class Background(Widget):

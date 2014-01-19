@@ -30,7 +30,8 @@ websocket_info({create_player, Data}, Req, none) ->
     {ok, PlayerPid} = tri_player:start_link(Data),
     {ok, Req, PlayerPid}.
 
-websocket_terminate(_Reason, _Req, _PlayerPid) ->
+websocket_terminate(_Reason, _Req, PlayerPid) ->
+    tri_player:stop(PlayerPid),
     ok.
 
 
