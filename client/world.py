@@ -57,13 +57,17 @@ class _World(object):
         obj = self._objects.pop(ident)
         self._widget.remove_widget(obj)
 
-    def handle_init(self, uid, server_tick, level_size):
+    def handle_init(self, uid, server_tick, level_size, objects):
         self._uid = uid
         self._server_tick = server_tick
         self._user_commands = UserCommands(uid, server_tick)
         self._user_commands.activate()
         self._add_object('background', Background(size=level_size))
-        self._add_object(uid, Triangle())
+        user_data = objects[uid]
+        window_center = Vector(Window.size) / 2
+        world_pos = window_center - Vector(user_data['pos'])
+        self._objects['background'].pos = world_pos
+        self.handle_objects_info(objects)
 
     def handle_objects_info(self, objects):
         for ident, data in objects.items():

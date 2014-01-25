@@ -14,6 +14,7 @@ class UserCommands(object):
         self._server_tick = server_tick
         self._fire = False
         self._move_vector = (0, 0) # length, angle
+        self._prev_move_vector = self._move_vector
 
     def move_vector(self, length, angle):
         if not length and not angle:
@@ -31,6 +32,9 @@ class UserCommands(object):
         Clock.unschedule(self.send)
 
     def send(self, dt):
+        if self._prev_move_vector == self._move_vector:
+            return
+        self._prev_move_vector = self._move_vector
         data = dict(cmd='user.commands',
                     args=dict(move_vector=self._move_vector,
                               fire=self._fire))

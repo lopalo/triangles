@@ -63,7 +63,8 @@ test_start(_Config) ->
     [
         {uid, _},
         {server_tick, 200},
-        {level_size, [1000, 700]}
+        {level_size, [1000, 700]},
+        {objects, [_Player]}
     ] = Args.
 
 test_get_objects_info(_Config) ->

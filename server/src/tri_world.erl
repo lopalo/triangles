@@ -7,7 +7,7 @@
 
 -include("settings.hrl").
 
--record(state, {players, bullets, last_update}).
+-record(state, {players, bullets, last_update, tick_number=0}).
 
 % behaviour callbacks
 init(_Args) ->
@@ -23,7 +23,7 @@ handle_cast({client_cmd, {Cmd, Args, ConnPid}}, State) ->
 handle_cast({add_player, {PlayerId, PlayerPid, ConnPid} = Info}, State) ->
     true = ets:insert_new(State#state.players, Info),
     erlang:monitor(process, PlayerPid),
-    send_init(ConnPid, PlayerId),
+    send_init(ConnPid, PlayerId, State),
     {noreply, State}.
 
 handle_info({'DOWN', Ref, process, Pid, _Reason}, State) ->
@@ -44,35 +44,57 @@ terminate(_Reason, _State) ->
 
 % internal functions
 handle_client_cmd(start, Args, ConnPid, State) ->
-    tri_connection:create_player(ConnPid, Args),
+    {ok, [W, H]} = application:get_env(tri, level_size),
+    {ok, SpawnStep} = application:get_env(tri, player_spawn_step),
+    Step = State#state.tick_number * SpawnStep,
+    Pos = [Step rem W, Step rem H],
+    Args1 = dict:store(pos, Pos, Args),
+    Args2 = dict:store(angle, Step rem 360, Args1),
+    tri_connection:create_player(ConnPid, Args2),
     State;
 handle_client_cmd(get_objects_info, Args, ConnPid, State) ->
     Players = State#state.players,
     Idents = dict:fetch(idents, Args),
-    GetInfo = fun(F, [Id|Ids]) ->
+    GetInfo = fun(Id) ->
         case ets:member(Players, Id) of
             true ->
                 Pid = ets:lookup_element(Players, Id, 2),
-                [{Id, tri_player:get_client_info(Pid)}|F(F, Ids)];
+                {Id, tri_player:get_client_info(Pid)};
             false ->
-                F(F, Ids)
-        end;
-    (_F, []) -> []
+                none
+        end
     end,
-    Objects = GetInfo(GetInfo, Idents),
+    Filter = fun tri_utils:filter_none/1,
+    Objects = lists:filter(Filter, safe_map(GetInfo, Idents)),
     tri_controller:send(ConnPid, 'world.objects_info', [{objects, Objects}]),
     State.
 
 
-send_init(ConnPid, PlayerId) ->
+send_init(ConnPid, PlayerId, State) ->
     {ok, ServerTick} = application:get_env(tri, server_tick),
     {ok, LevelSize} = application:get_env(tri, level_size),
+    Players = State#state.players,
+    GetInfo = fun([Id, Pid]) ->
+        {Id, tri_player:get_client_info(Pid)}
+    end,
+    Objects = safe_map(GetInfo, ets:match(Players, {'$1', '$2', '_'})),
     StartData = [
         {uid, PlayerId},
         {server_tick, ServerTick},
-        {level_size, LevelSize}
+        {level_size, LevelSize},
+        {objects, Objects}
     ],
     tri_controller:send(ConnPid, 'world.init', StartData).
+
+
+safe_map(_F, []) -> [];
+safe_map(F, [I|Is]) ->
+    try F(I) of
+        Value -> [Value|safe_map(F, Is)]
+    catch
+        exit:{noproc, _} ->
+            Is
+    end.
 
 ms() ->
     N = now(),
@@ -81,20 +103,16 @@ ms() ->
 handle_tick(State) ->
     Now = ms(),
     LastUpdate = State#state.last_update,
-    NewState = State#state{last_update=Now},
+    NewState = State#state{last_update=Now,
+                           tick_number=State#state.tick_number + 1},
     DT = max(Now - LastUpdate, 0),
-    PlayersTick = fun([PlayerId, PlayerPid], Data) ->
-        try tri_player:tick(PlayerPid, DT) of
-            {ok, Pos, Angle} ->
-                PlayerData = [{pos, Pos}, {angle, Angle}],
-                [{PlayerId, PlayerData}|Data]
-        catch
-            exit:{noproc, _} ->
-                Data
-        end
+    PlayersTick = fun([PlayerId, PlayerPid]) ->
+        {ok, Pos, Angle} = tri_player:tick(PlayerPid, DT),
+        PlayerData = [{pos, Pos}, {angle, Angle}],
+        {PlayerId, PlayerData}
     end,
     Players = ets:match(State#state.players, {'$1', '$2', '_'}),
-    TickData = lists:foldl(PlayersTick, [], Players),
+    TickData = safe_map(PlayersTick, Players),
     {TickData, NewState}.
 
 

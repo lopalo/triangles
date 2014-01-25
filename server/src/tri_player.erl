@@ -15,7 +15,11 @@
 % behaviour callbacks
 init([ConnPid, PlayerData]) ->
     tri_world:add_player(pid_to_id(), ConnPid),
-    Player = #player{name=dict:fetch(name, PlayerData)},
+    Player = #player{
+        name=dict:fetch(name, PlayerData),
+        pos=dict:fetch(pos, PlayerData),
+        angle=dict:fetch(angle, PlayerData)
+    },
     {ok, Player}.
 
 
