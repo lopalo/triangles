@@ -3,13 +3,14 @@
 -behaviour(gen_server).
 
 -export([init/1, handle_call/3, handle_cast/2, terminate/2]).
--export([start_link/1, stop/1, client_cmd/3, tick/2, get_client_info/1]).
--export([make_player/5]).
+-export([start_link/1, stop/1, client_cmd/3,
+         tick/2, get_client_info/1, touch_border/3]).
+-export([make_player/6]).
 
 -include("settings.hrl").
 
 
--record(player, {uid, name, angle=0, pos=[0, 0], speed=[0, 0]}).
+-record(player, {uid, name, angle=0, pos=[0, 0], speed=[0, 0], force=[0, 0]}).
 
 
 % behaviour callbacks
@@ -23,15 +24,25 @@ init([ConnPid, PlayerData]) ->
     {ok, Player}.
 
 
-handle_call({tick, DT}, _From,
-        #player{speed=Speed, pos=Pos, angle=Angle} = Player) ->
-    [CX, CY] = Pos,
-    [SX, SY] = Speed,
-    {ok, SpeedFactor} = application:get_env(tri, speed_factor),
-    X = trunc(CX + SX * DT * SpeedFactor),
-    Y = trunc(CY + SY * DT * SpeedFactor),
-    NewPos = [X, Y],
-    {reply, {ok, NewPos, Angle}, Player#player{pos=NewPos}};
+handle_call({tick, DT}, _From, #player{speed=Speed1, pos=Pos,
+                                       angle=Angle, force=Force} = Player) ->
+    [X1, Y1] = Pos,
+    [SX1, SY1] = Speed1,
+    [FX, FY] = Force,
+    {ok, MaxSpeed} = application:get_env(tri, max_speed),
+    {ok, FF} = application:get_env(tri, force_factor),
+    Speed2 = [SX2, SY2] = [SX1 + FX * DT * FF, SY1 + FY * DT * FF],
+    Speed = math:sqrt(math:pow(SX2, 2) + math:pow(SY2, 2)),
+    Speed3 = [SX3, SY3] = if
+        Speed =< MaxSpeed ->
+            Speed2;
+        true ->
+            SCoef = Speed / MaxSpeed,
+            [SX2 / SCoef, SY2 / SCoef]
+    end,
+
+    NewPos = [trunc(X1 + SX3 * DT), trunc(Y1 + SY3 * DT)],
+    {reply, {ok, NewPos, Angle}, Player#player{pos=NewPos, speed=Speed3}};
 
 handle_call(get_client_info, _From,
         #player{name=Name, pos=Pos, angle=Angle} = Player) ->
@@ -47,6 +58,18 @@ handle_call(get_client_info, _From,
 handle_cast({client_cmd, {Cmd, Args}}, Player) ->
     NewPlayer = handle_client_cmd(Cmd, Args, Player),
     {noreply, NewPlayer};
+handle_cast({touch_border, Pos, {DX, DY}}, Player) ->
+    [SX1, SY1] = Player#player.speed,
+    {DSX, DSY} = {SX1 / abs(SX1), SY1 / abs(SY1)},
+    SX2 = case DX == 0 orelse DSX == DX of
+        true -> SX1;
+        false -> -SX1
+    end,
+    SY2 = case DY == 0 orelse DSY == DY of
+        true -> SY1;
+        false -> -SY1
+    end,
+    {noreply, Player#player{pos=Pos, speed=[SX2, SY2]}};
 handle_cast(stop, Player) ->
     {stop, normal, Player}.
 
@@ -60,7 +83,7 @@ handle_client_cmd(commands, Args, Player) ->
     [Length, Angle] = dict:fetch(move_vector, Args),
     Player#player{
         angle=Angle,
-        speed=vect_transform(Length, Angle)
+        force=vect_transform(Length, Angle)
     }.
 
 vect_transform(Length, Angle) ->
@@ -83,14 +106,19 @@ stop(PlayerPid) ->
 client_cmd(PlayerPid, Cmd, Args) ->
     gen_server:cast(PlayerPid, {client_cmd, {Cmd, Args}}).
 
-tick(PlayerPid, Dt) ->
-    gen_server:call(PlayerPid, {tick, Dt}).
+tick(PlayerPid, DT) ->
+    Seconds = DT / 1000,
+    gen_server:call(PlayerPid, {tick, Seconds}).
 
 get_client_info(PlayerdPid) ->
     gen_server:call(PlayerdPid, get_client_info).
 
+touch_border(PlayerdPid, Pos, Data) ->
+    gen_server:cast(PlayerdPid, {touch_border, Pos, Data}).
+
 
 % test function
-make_player(Uid, Name, Angle, Pos, Speed) ->
-    #player{uid=Uid, name=Name, angle=Angle, pos=Pos, speed=Speed}.
+make_player(Uid, Name, Angle, Pos, Speed, Force) ->
+    #player{uid=Uid, name=Name, angle=Angle,
+            pos=Pos, speed=Speed, force=Force}.
 

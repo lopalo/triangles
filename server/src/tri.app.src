@@ -11,9 +11,10 @@
   {mod, {tri_app, []}},
   {env, [
       {port, 9000},
-      {server_tick, 100},
+      {server_tick, 100}, %milliseconds
       {level_size, [1000, 700]},
-      {speed_factor, 0.4},
+      {max_speed, 500},
+      {force_factor, 300},
       {player_spawn_step, 77}
   ]}
  ]}.

@@ -106,14 +106,33 @@ handle_tick(State) ->
     NewState = State#state{last_update=Now,
                            tick_number=State#state.tick_number + 1},
     DT = max(Now - LastUpdate, 0),
+    {ok, LevelSize} = application:get_env(tri, level_size),
     PlayersTick = fun([PlayerId, PlayerPid]) ->
-        {ok, Pos, Angle} = tri_player:tick(PlayerPid, DT),
-        PlayerData = [{pos, Pos}, {angle, Angle}],
+        {ok, Pos1, Angle} = tri_player:tick(PlayerPid, DT),
+        {Pos2, TouchData} = check_borders(Pos1, LevelSize),
+        case TouchData of
+            none -> ok;
+            TouchData ->
+                tri_player:touch_border(PlayerPid, Pos2, TouchData)
+        end,
+        PlayerData = [{pos, Pos2}, {angle, Angle}],
         {PlayerId, PlayerData}
     end,
     Players = ets:match(State#state.players, {'$1', '$2', '_'}),
     TickData = safe_map(PlayersTick, Players),
     {TickData, NewState}.
+
+check_borders([X1, Y1], [W, H]) ->
+    Pos2 = [X2, Y2] = [erlang:max(erlang:min(X1, W), 0),
+                       erlang:max(erlang:min(Y1, H), 0)],
+    TouchData = case {X2 - X1, Y2 - Y1} of
+        {0, 0} -> none;
+        {DX, 0} -> {DX / abs(DX), 0};
+        {0, DY} -> {0, DY / abs(DY)};
+        {DX, DY} -> {DX / abs(DX), DY / abs(DY)}
+    end,
+    {Pos2, TouchData}.
+
 
 
 % external interface

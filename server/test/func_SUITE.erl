@@ -27,7 +27,9 @@ init_per_testcase(_, Config) ->
     application:set_env(tri, port, ?PORT),
     application:set_env(tri, server_tick, 200),
     application:set_env(tri, level_size, [1000, 700]),
-    application:set_env(tri, speed_factor, 0.1),
+    application:set_env(tri, max_speed, 500),
+    application:set_env(tri, force_factor, 300),
+    application:set_env(tri, player_spawn_step, 77),
     tri_main:start(),
     Config.
 
@@ -97,7 +99,7 @@ test_tick(_Config) ->
     {ok, [{tick_data, Data}]} = tri_test_cli:recv(U2, 'world.tick', 1000),
     [
         {Uid1, [{<<"pos">>, [0, 0]},{<<"angle">>, 0}]},
-        {Uid2, [{<<"pos">>, [104, 60]}, {<<"angle">>, 30}]}
+        {Uid2, [{<<"pos">>, [94, 54]}, {<<"angle">>, 30}]}
     ] = lists:sort(Data).
 
 

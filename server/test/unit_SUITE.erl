@@ -14,7 +14,9 @@ init_per_suite(Config) ->
     application:set_env(tri, port, 9000),
     application:set_env(tri, server_tick, 200),
     application:set_env(tri, level_size, [1000, 700]),
-    application:set_env(tri, speed_factor, 0.1),
+    application:set_env(tri, max_speed, 37),
+    application:set_env(tri, force_factor, 100),
+    application:set_env(tri, player_spawn_step, 77),
     Config.
 
 end_per_suite(Config) ->
@@ -29,14 +31,10 @@ end_per_testcase(_, Config) ->
 
 % test cases
 test_player_tick(_Config) ->
-    DT = 200,
+    DT = 0.2,
     Player = tri_player:make_player(<<"user:1">>, <<"user">>,
-                                        48, [23, 39], [7, 4]),
-    {reply, Reply, NewPlayer} = tri_player:handle_call({tick, DT},
-                                                       none, Player),
-    ExpPlayer = tri_player:make_player(<<"user:1">>, <<"user">>,
-                                    48, [163, 119], [7, 4]),
-    ExpPlayer = NewPlayer,
-    {ok, [163, 119], 48} = Reply.
+                                        48, [23, 39], [7, 4], [23, 16]),
+    {reply, Reply, _} = tri_player:handle_call({tick, DT}, none, Player),
+    {ok, [29, 43], 48} = Reply.
 
 
