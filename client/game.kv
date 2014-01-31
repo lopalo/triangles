@@ -2,7 +2,7 @@
 #:import W kivy.core.window.Window
 
 
-<StartMenu>:
+<StartMenu@BoxLayout>:
     height: W.height / 2
     width: W.width / 2
     center_x: W.width / 2
@@ -10,16 +10,16 @@
     orientation: 'vertical'
     spacing: 10
     padding: 20
-    Label: 
+    Label:
         text: 'Address:'
     TextInput:
         id: address
         multiline: False
-        text: 'localhost:7777'
-    Label: 
+        text: ''
+    Label:
         text: 'Name:'
     TextInput:
-        id: user_name 
+        id: user_name
         multiline: False
         text: 'anonymous'
     Button:
@@ -34,7 +34,7 @@ MainWidget:
 
 <LeftControl>:
     center: W.height / 6, W.height / 6
-    inner_x: self.center_x 
+    inner_x: self.center_x
     inner_y: self.center_y
     outer_rad: W.height / 8
     inner_rad: self.outer_rad / 2.5
@@ -56,9 +56,22 @@ MainWidget:
         Line:
             circle: self.center_x, self.center_y, self.radius
 
+<Scores@BoxLayout>:
+    opacity: .7
+    height: W.height / 2
+    width: W.width / 6
+    x: 0
+    top: W.height
+    orientation: 'vertical'
+    spacing: 0
+    padding: 0
+
 <UI>:
+    scores: scores
     LeftControl
-    RightControl 
+    RightControl
+    Scores:
+        id: scores
 
 <GameWidget>:
     ui: ui

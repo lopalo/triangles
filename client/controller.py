@@ -1,6 +1,6 @@
 from kivy.clock import Clock
 from kivy.logger import Logger as log
-
+from functools import wraps
 from network import Connection
 
 UPDATE_PERIOD = 1. / 40.
@@ -83,7 +83,7 @@ class _Controller(object):
             handler_name, method_name = cmd.split('.')
             if handler_name in handlers:
                 handler = handlers[handler_name]
-                meth = getattr(handler, 'handle_' + method_name)
+                meth = safe_call(getattr(handler, 'handle_' + method_name))
                 if FAKE_PING:
                     cb = lambda dt: meth(**args)
                     Clock.schedule_once(cb, FAKE_PING / 1000.)
@@ -92,6 +92,16 @@ class _Controller(object):
             else:
                 log.warning('No handler for command "%s"', cmd)
             data = conn.receive()
+
+
+def safe_call(fun):
+    @wraps(fun)
+    def new_fun(*args, **kwargs):
+        try:
+            return fun(*args, **kwargs)
+        except Exception:
+            log.exception('Exception occurred in function call')
+    return new_fun
 
 
 Controller = _Controller()

@@ -1,5 +1,5 @@
 from kivy.lang import Builder
-from kivy.properties import ListProperty, NumericProperty
+from kivy.properties import ListProperty, NumericProperty, StringProperty
 from kivy.uix.widget import Widget
 from kivy.vector import Vector
 from kivy.animation import Animation
@@ -11,8 +11,12 @@ from controller import Controller, UserCommands
 
 INIT_OBJECT_TTL = 10
 
+class WorldError(Exception):
+    pass
+
 
 class _World(object):
+    """ 'background' is a reserved object id """
 
     def __init__(self):
         Builder.load_file('world.kv', rulesonly=True)
@@ -42,16 +46,31 @@ class _World(object):
     def fire(self, state):
         self._user_commands.fire(state)
 
-    def _add_object(self, ident, obj, data=None, index=0):
+    @property
+    def world_pos(self):
+        return Vector(self._objects['background'].pos)
+
+    @world_pos.setter
+    def world_pos(self, value):
+        self._objects['background'].pos = value
+
+    def _add_object(self, ident, data=None, index=0):
+        type = data['type']
+        if type == 'background':
+            obj = Background(size=data['size'])
+        elif type == 'triangle':
+            obj = Triangle()
+        else:
+            raise WorldError("Unknown type '{}'".format(type))
         self._objects[ident] = obj
         self._widget.add_widget(obj, index)
-        if not isinstance(obj, MovableObject) or data is None:
-            return
-        world_pos = Vector(self._objects['background'].pos)
-        pos = Vector(data['pos'])
-        pos += world_pos
-        obj.center = pos
-        obj.angle = data['angle']
+        if type in ('triangle', 'bullet'):
+            pos = Vector(data['pos'])
+            pos += self.world_pos
+            obj.center = pos
+        if type == 'triangle':
+            obj.angle = data['angle']
+            obj.name = data['name']
 
     def _remove_object(self, ident):
         obj = self._objects.pop(ident)
@@ -62,18 +81,19 @@ class _World(object):
         self._server_tick = server_tick
         self._user_commands = UserCommands(uid, server_tick)
         self._user_commands.activate()
-        self._add_object('background', Background(size=level_size))
+        self._add_object('background', dict(size=level_size,
+                                            type='background'))
         user_data = objects[uid]
         window_center = Vector(Window.size) / 2
         world_pos = window_center - Vector(user_data['pos'])
-        self._objects['background'].pos = world_pos
+        self.world_pos = world_pos
         self.handle_objects_info(objects)
 
     def handle_objects_info(self, objects):
         for ident, data in objects.items():
             if ident in self._objects:
                 continue
-            self._add_object(ident, Triangle(), data)
+            self._add_object(ident, data)
 
     def handle_tick(self, tick_data):
         objects = self._objects
@@ -128,12 +148,14 @@ class TemporaryObject(Widget):
     ttl = NumericProperty(INIT_OBJECT_TTL)
 
 
-class MovableObject(TemporaryObject):
-    pass
-
-
-class Triangle(MovableObject):
+class Tri(Widget):
+    """Drawing"""
     nose = ListProperty([0, 0])
+    angle = NumericProperty(0)
+
+
+class Triangle(TemporaryObject):
+    name = StringProperty()
     angle = NumericProperty(0)
 
 

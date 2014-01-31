@@ -1,11 +1,8 @@
 #:kivy 1.7.2
 #:import W kivy.core.window.Window
 
-
-<Triangle>:
-    width: 50 
-    height: 25 
-    nose: [self.right, self.y + self.height / 2]
+<Tri>:
+    nose: self.right, self.y + self.height / 2
     canvas.before:
         PushMatrix
     canvas:
@@ -16,9 +13,21 @@
             axis: 0, 0, 1
             origin: self.center
         Triangle:
-            points: self.pos + self.nose + [self.x, self.top] 
+            points: self.pos + self.nose + [self.x, self.top]
     canvas.after:
         PopMatrix
+
+<Triangle>:
+    width: 50
+    height: 25
+    Tri:
+        width: root.width
+        height: root.height
+        pos: root.pos
+        angle: root.angle
+    Label:
+        center: root.center_x, root.center_y + 35
+        text: root.name
 
 <Background>:
     canvas:

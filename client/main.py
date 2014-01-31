@@ -5,6 +5,7 @@ import logging
 from kivy.app import App
 from kivy.uix.widget import Widget
 from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.label import Label
 from kivy.properties import (
     ObjectProperty, NumericProperty,
     ReferenceListProperty)
@@ -77,6 +78,24 @@ class RightControl(Widget):
         World.fire(False)
 
 
+class Scores(BoxLayout):
+    records = NumericProperty(10)
+
+    def __init__(self, *args, **kwargs):
+        super(Scores, self).__init__(*args, **kwargs)
+        #TODO: cleanup
+        score_list = [('one', 1111), ('two', 22222), ('three', 3333),
+                      ('aaa', 1111), ('bbb', 22222), ('ccc', 3333),
+                      ('eee', 1111), ('ddddddddd', 22222), ('fffffffff', 3333),
+                      ('foo', 1111), ('bar', 22222), ('zzzz', 3333)]
+        self.handle_init(score_list)
+
+    def handle_init(self, score_list):
+        for name, score in score_list[:self.records]:
+            text = "{}: {}".format(name, score)
+            self.add_widget(Label(text=text))
+
+
 class UI(Widget):
     pass
 
@@ -85,8 +104,11 @@ class GameWidget(Widget):
 
     ui = ObjectProperty(None)
 
-    def activate_world(self, *args, **kwargs):
+    def initialize(self, *args, **kwargs):
         World.activate(self, *args, **kwargs)
+        #TODO
+        #Controller.send(cmd='scores.request_init', args={})
+        #Controller.add_handler('scores', self.ui.scores)
 
 
 class MainWidget(Widget):
@@ -98,7 +120,7 @@ class MainWidget(Widget):
         self.remove_widget(self.start_menu)
         Controller.connect(address, wait=True)
         self.game_widget = GameWidget()
-        self.game_widget.activate_world(name)
+        self.game_widget.initialize(name)
         self.add_widget(self.game_widget)
 
 
