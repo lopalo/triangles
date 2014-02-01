@@ -4,13 +4,9 @@
 
 -export([init/1, handle_call/3, handle_cast/2, terminate/2]).
 -export([start_link/1, stop/1, client_cmd/3,
-         tick/2, get_client_info/1, touch_border/3]).
--export([make_player/6]).
+         tick/2, get_client_info/1, touch_border/4]).
 
--include("settings.hrl").
-
-
--record(player, {uid, name, angle=0, pos=[0, 0], speed=[0, 0], force=[0, 0]}).
+-include("player.hrl").
 
 
 % behaviour callbacks
@@ -42,7 +38,9 @@ handle_call({tick, DT}, _From, #player{speed=Speed1, pos=Pos,
     end,
 
     NewPos = [trunc(X1 + SX3 * DT), trunc(Y1 + SY3 * DT)],
-    {reply, {ok, NewPos, Angle}, Player#player{pos=NewPos, speed=Speed3}};
+    Bullet = none, %TODO
+    Resp = {ok, NewPos, Angle, Bullet},
+    {reply, Resp, Player#player{pos=NewPos, speed=Speed3}};
 
 handle_call(get_client_info, _From,
         #player{name=Name, pos=Pos, angle=Angle} = Player) ->
@@ -58,7 +56,7 @@ handle_call(get_client_info, _From,
 handle_cast({client_cmd, {Cmd, Args}}, Player) ->
     NewPlayer = handle_client_cmd(Cmd, Args, Player),
     {noreply, NewPlayer};
-handle_cast({touch_border, Pos, {DX, DY}}, Player) ->
+handle_cast({touch_border, Pos, {DX, DY}, ReflFactor}, Player) ->
     [SX1, SY1] = Player#player.speed,
     {DSX, DSY} = {SX1 / abs(SX1), SY1 / abs(SY1)},
     SX2 = case DX == 0 orelse DSX == DX of
@@ -69,7 +67,8 @@ handle_cast({touch_border, Pos, {DX, DY}}, Player) ->
         true -> SY1;
         false -> -SY1
     end,
-    {noreply, Player#player{pos=Pos, speed=[SX2, SY2]}};
+    NewSpeed = [SX2 * ReflFactor, SY2 * ReflFactor],
+    {noreply, Player#player{pos=Pos, speed=NewSpeed}};
 handle_cast(stop, Player) ->
     {stop, normal, Player}.
 
@@ -113,12 +112,7 @@ tick(PlayerPid, DT) ->
 get_client_info(PlayerdPid) ->
     gen_server:call(PlayerdPid, get_client_info).
 
-touch_border(PlayerdPid, Pos, Data) ->
-    gen_server:cast(PlayerdPid, {touch_border, Pos, Data}).
+touch_border(PlayerdPid, Pos, Data, ReflFactor) ->
+    gen_server:cast(PlayerdPid, {touch_border, Pos, Data, ReflFactor}).
 
-
-% test function
-make_player(Uid, Name, Angle, Pos, Speed, Force) ->
-    #player{uid=Uid, name=Name, angle=Angle,
-            pos=Pos, speed=Speed, force=Force}.
 

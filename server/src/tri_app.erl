@@ -1,7 +1,5 @@
 -module(tri_app).
 
--include("settings.hrl").
-
 -behaviour(application).
 
 %% Application callbacks

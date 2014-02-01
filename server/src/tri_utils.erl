@@ -1,6 +1,6 @@
 -module(tri_utils).
 
--export([pack_json/1, unpack_json/1, atom_keys/1, filter_none/1]).
+-export([pack_json/1, unpack_json/1, atom_keys/1]).
 
 
 pack_json([{_Key, _Value}|_Is] = Items) ->
@@ -22,7 +22,5 @@ unpack_json(Item) ->
 atom_keys(List) ->
     [{binary_to_atom(Key, utf8), Value} || {Key, Value} <- List].
 
-filter_none(none) -> false;
-filter_none(_Val) -> true.
 
 

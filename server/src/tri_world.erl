@@ -5,7 +5,6 @@
 -export([init/1, handle_cast/2, handle_info/2, terminate/2]).
 -export([start_link/0, client_cmd/2, add_player/2]).
 
--include("settings.hrl").
 
 -record(state, {players, bullets, last_update, tick_number=0}).
 
@@ -64,8 +63,7 @@ handle_client_cmd(get_objects_info, Args, ConnPid, State) ->
                 none
         end
     end,
-    Filter = fun tri_utils:filter_none/1,
-    Objects = lists:filter(Filter, safe_map(GetInfo, Idents)),
+    Objects = [O || O <- safe_map(GetInfo, Idents), O /= none],
     tri_controller:send(ConnPid, 'world.objects_info', [{objects, Objects}]),
     State.
 
@@ -107,20 +105,26 @@ handle_tick(State) ->
                            tick_number=State#state.tick_number + 1},
     DT = max(Now - LastUpdate, 0),
     {ok, LevelSize} = application:get_env(tri, level_size),
+    {ok, ReflFactor} = application:get_env(tri, reflection_factor),
     PlayersTick = fun([PlayerId, PlayerPid]) ->
-        {ok, Pos1, Angle} = tri_player:tick(PlayerPid, DT),
+        {ok, Pos1, Angle, Bullet} = tri_player:tick(PlayerPid, DT),
         {Pos2, TouchData} = check_borders(Pos1, LevelSize),
         case TouchData of
             none -> ok;
             TouchData ->
-                tri_player:touch_border(PlayerPid, Pos2, TouchData)
+                tri_player:touch_border(PlayerPid, Pos2, TouchData, ReflFactor)
         end,
         PlayerData = [{pos, Pos2}, {angle, Angle}],
-        {PlayerId, PlayerData}
+        {PlayerId, PlayerData, Bullet}
     end,
     Players = ets:match(State#state.players, {'$1', '$2', '_'}),
     TickData = safe_map(PlayersTick, Players),
-    {TickData, NewState}.
+    ToSend = [{PlayerId, PlayerData} || {PlayerId, PlayerData, _} <- TickData],
+    Bullets = [{PlayerId, Bullet} ||
+               {PlayerId, _, Bullet} <- TickData,
+               Bullet /= none],
+    %TODO: process bullets
+    {ToSend, NewState}.
 
 check_borders([X1, Y1], [W, H]) ->
     Pos2 = [X2, Y2] = [erlang:max(erlang:min(X1, W), 0),
