@@ -42,6 +42,6 @@ test_player_tick(_Config) ->
                      speed = [7, 4],
                      force = [23, 16]},
     {reply, Reply, _} = tri_player:handle_call({tick, DT}, none, Player),
-    {ok, [29, 43], 48, none} = Reply.
+    {ok, [29, 43], 48, false} = Reply.
 
 

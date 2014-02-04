@@ -1,6 +1,6 @@
 -module(tri_utils).
 
--export([pack_json/1, unpack_json/1, atom_keys/1]).
+-export([pack_json/1, unpack_json/1, atom_keys/1, ms/0]).
 
 
 pack_json([{_Key, _Value}|_Is] = Items) ->
@@ -22,5 +22,8 @@ unpack_json(Item) ->
 atom_keys(List) ->
     [{binary_to_atom(Key, utf8), Value} || {Key, Value} <- List].
 
+ms() ->
+    N = now(),
+    element(2, N) * 1000 + trunc(element(3, N) / 1000).
 
 

@@ -15,33 +15,17 @@ init([ConnPid, PlayerData]) ->
     Player = #player{
         name=dict:fetch(name, PlayerData),
         pos=dict:fetch(pos, PlayerData),
-        angle=dict:fetch(angle, PlayerData)
+        angle=dict:fetch(angle, PlayerData),
+        last_fire=tri_utils:ms()
     },
     {ok, Player}.
 
 
-handle_call({tick, DT}, _From, #player{speed=Speed1, pos=Pos,
-                                       angle=Angle, force=Force} = Player) ->
-    [X1, Y1] = Pos,
-    [SX1, SY1] = Speed1,
-    [FX, FY] = Force,
-    {ok, MaxSpeed} = application:get_env(tri, max_speed),
-    {ok, FF} = application:get_env(tri, force_factor),
-    Speed2 = [SX2, SY2] = [SX1 + FX * DT * FF, SY1 + FY * DT * FF],
-    Speed = math:sqrt(math:pow(SX2, 2) + math:pow(SY2, 2)),
-    Speed3 = [SX3, SY3] = if
-        Speed =< MaxSpeed ->
-            Speed2;
-        true ->
-            SCoef = Speed / MaxSpeed,
-            [SX2 / SCoef, SY2 / SCoef]
-    end,
-
-    NewPos = [trunc(X1 + SX3 * DT), trunc(Y1 + SY3 * DT)],
-    Bullet = none, %TODO
-    Resp = {ok, NewPos, Angle, Bullet},
-    {reply, Resp, Player#player{pos=NewPos, speed=Speed3}};
-
+handle_call({tick, DT}, _From, Player1) ->
+    {{Pos, Angle}, Player2} = tick_move(DT, Player1),
+    {Fire, Player3} = tick_fire(Player2),
+    Resp = {ok, Pos, Angle, Fire},
+    {reply, Resp, Player3};
 handle_call(get_client_info, _From,
         #player{name=Name, pos=Pos, angle=Angle} = Player) ->
     Info = [
@@ -80,9 +64,14 @@ terminate(_Reason, _Player) ->
 % internal functions
 handle_client_cmd(commands, Args, Player) ->
     [Length, Angle] = dict:fetch(move_vector, Args),
+    NewAngle = if
+        Length == 0 -> Player#player.angle;
+        true -> Angle
+    end,
     Player#player{
-        angle=Angle,
-        force=vect_transform(Length, Angle)
+        angle=NewAngle,
+        force=vect_transform(Length, NewAngle),
+        fire=dict:fetch(fire, Args)
     }.
 
 vect_transform(Length, Angle) ->
@@ -93,6 +82,43 @@ vect_transform(Length, Angle) ->
 
 pid_to_id() ->
     list_to_binary("user:" ++ pid_to_list(self())).
+
+tick_move(DT, #player{speed=Speed1, pos=Pos,
+                      angle=Angle, force=Force} = Player) ->
+    [X1, Y1] = Pos,
+    [SX1, SY1] = Speed1,
+    [FX, FY] = Force,
+    {ok, MaxSpeed} = application:get_env(tri, max_speed),
+    {ok, FF} = application:get_env(tri, force_factor),
+    Speed2 = [SX2, SY2] = [SX1 + FX * DT * FF, SY1 + FY * DT * FF],
+    Speed = math:sqrt(math:pow(SX2, 2) + math:pow(SY2, 2)),
+    Speed3 = [SX3, SY3] = if
+        Speed =< MaxSpeed ->
+            Speed2;
+        true ->
+            SCoef = Speed / MaxSpeed,
+            [SX2 / SCoef, SY2 / SCoef]
+    end,
+    NewPos = [trunc(X1 + SX3 * DT), trunc(Y1 + SY3 * DT)],
+    {{NewPos, Angle}, Player#player{pos=NewPos, speed=Speed3}}.
+
+
+tick_fire(Player) ->
+    case Player#player.fire of
+        false ->
+            {false, Player};
+        true ->
+            {ok, FR} = application:get_env(tri, fire_rate),
+            LF = Player#player.last_fire,
+            Now = tri_utils:ms(),
+            if
+                (Now - LF) / 1000 < FR ->
+                    {false, Player};
+                true ->
+                    {true, Player#player{last_fire=Now}}
+            end
+    end.
+
 
 
 % external interface

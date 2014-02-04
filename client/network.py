@@ -4,7 +4,6 @@ import time
 
 from threading import Thread
 from collections import deque
-from kivy.vector import Vector
 from websocket import WebSocketApp, setdefaulttimeout
 from kivy.logger import Logger as log
 

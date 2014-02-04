@@ -96,13 +96,15 @@ test_tick(_Config) ->
     {Uid1, _U1} = make_player(<<"player1">>),
     {Uid2, U2} = make_player(<<"player2">>),
     MoveVect = [3, 30],
-    tri_test_cli:send(U2, 'user.commands', [{move_vector, MoveVect}]),
+    Cmds = [{move_vector, MoveVect}, {fire, false}],
+    tri_test_cli:send(U2, 'user.commands', Cmds),
     tri_test_cli:recv(U2, 'world.tick', 1000),
-    {ok, [{tick_data, Data}]} = tri_test_cli:recv(U2, 'world.tick', 1000),
+    Data = tri_test_cli:recv(U2, 'world.tick', 1000),
+    {ok, [{objects, Players}, {bullets, []}]} = Data,
     [
         {Uid1, [{<<"pos">>, [0, 0]},{<<"angle">>, 0}]},
         {Uid2, [{<<"pos">>, [94, 54]}, {<<"angle">>, 30}]}
-    ] = lists:sort(Data).
+    ] = lists:sort(Players).
 
 
 

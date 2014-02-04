@@ -9,7 +9,8 @@ from kivy.logger import Logger as log
 from controller import Controller, UserCommands
 
 
-INIT_OBJECT_TTL = 10
+OBJECT_TTL = 10
+BULLET_TTL = 2
 
 class WorldError(Exception):
     pass
@@ -60,6 +61,8 @@ class _World(object):
             obj = Background(size=data['size'])
         elif type == 'triangle':
             obj = Triangle()
+        elif type == 'bullet':
+            obj = Bullet()
         else:
             raise WorldError("Unknown type '{}'".format(type))
         self._objects[ident] = obj
@@ -71,6 +74,7 @@ class _World(object):
         if type == 'triangle':
             obj.angle = data['angle']
             obj.name = data['name']
+        return obj
 
     def _remove_object(self, ident):
         obj = self._objects.pop(ident)
@@ -95,32 +99,33 @@ class _World(object):
                 continue
             self._add_object(ident, data)
 
-    def handle_tick(self, tick_data):
-        objects = self._objects
+    def handle_tick(self, objects, bullets):
+        #TODO: divide this method
+        objs = self._objects
         duration = self._server_tick / 1000.
         window_center = Vector(Window.size) / 2
-        user_data = tick_data[self._uid]
+        user_data = objects[self._uid]
         world_pos = window_center - Vector(user_data['pos'])
         #NOTE: strange bug when using pos instead x, y
-        bg = objects['background']
+        bg = objs['background']
         Animation.cancel_all(bg, 'x', 'y')
         Animation(x=world_pos[0], y=world_pos[1], duration=duration).start(bg)
-        user_obj = objects[self._uid]
+        user_obj = objs[self._uid]
         Animation.cancel_all(user_obj, 'center', 'angle')
         Animation(center=window_center,
                   angle=user_data['angle'],
                   duration=duration).start(user_obj)
         unknown_objects = set()
-        for ident, value in tick_data.items():
+        for ident, value in objects.items():
             if ident == self._uid:
                 continue
-            if ident not in objects:
+            if ident not in objs:
                 unknown_objects.add(ident)
                 continue
 
-            obj = objects[ident]
+            obj = objs[ident]
             if isinstance(obj, TemporaryObject):
-                obj.ttl = INIT_OBJECT_TTL
+                obj.ttl = OBJECT_TTL
             pos = Vector(value['pos'])
             pos += world_pos
             Animation.cancel_all(obj, 'center', 'angle')
@@ -130,8 +135,19 @@ class _World(object):
         if unknown_objects:
             Controller.send(cmd="world.get_objects_info",
                             args=dict(idents=list(unknown_objects)))
-        for ident in set(objects) - set(tick_data):
-            obj = objects[ident]
+        for ident, pos in bullets.items():
+            if ident in objs:
+                bullet = objs[ident]
+                #TODO: animation
+                bullet.center = Vector(pos) + world_pos
+                if bullet.hidden:
+                    bullet.show()
+                bullet.ttl = BULLET_TTL
+            else:
+                bullet = self._add_object(ident, dict(type='bullet', pos=pos))
+
+        for ident in set(objs) - set(objects) - set(bullets):
+            obj = objs[ident]
             if not isinstance(obj, TemporaryObject):
                 continue
             obj.ttl -= 1
@@ -145,7 +161,7 @@ class Background(Widget):
 
 class TemporaryObject(Widget):
 
-    ttl = NumericProperty(INIT_OBJECT_TTL)
+    ttl = NumericProperty(OBJECT_TTL)
 
 
 class Tri(Widget):
@@ -157,6 +173,16 @@ class Tri(Widget):
 class Triangle(TemporaryObject):
     name = StringProperty()
     angle = NumericProperty(0)
+
+
+class Bullet(TemporaryObject):
+    ttl = NumericProperty(BULLET_TTL)
+
+    def show(self):
+        self.opacity = 1
+
+    def hidden(self):
+        return not self.opacity
 
 
 World = _World()

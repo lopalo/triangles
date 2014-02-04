@@ -11,10 +11,10 @@
 % behaviour callbacks
 init(_Args) ->
     Players = ets:new(players, [set, private, {keypos, 1}]),
-    Bullets = ets:new(bullets, [set, private, {keypos, 1}]),
+    Bullets = [],
     {ok, ServerTick} = application:get_env(tri, server_tick),
     timer:send_after(ServerTick, tick),
-    {ok, #state{players=Players, bullets=Bullets, last_update=ms()}}.
+    {ok, #state{players=Players, bullets=Bullets, last_update=tri_utils:ms()}}.
 
 handle_cast({client_cmd, {Cmd, Args, ConnPid}}, State) ->
     NewState = handle_client_cmd(Cmd, Args, ConnPid, State),
@@ -32,9 +32,10 @@ handle_info({'DOWN', Ref, process, Pid, _Reason}, State) ->
 handle_info(tick, State) ->
     {ok, ServerTick} = application:get_env(tri, server_tick),
     timer:send_after(ServerTick, tick),
-    {TickData, NewState} = handle_tick(State),
+    {Objects, Bullets, NewState} = handle_tick(State),
     ConnPids = [C || [C] <- ets:match(State#state.players, {'_', '_', '$3'})],
-    tri_controller:broadcast(ConnPids, 'world.tick', [{tick_data, TickData}]),
+    ToSend = [{objects, Objects}, {bullets, Bullets}],
+    tri_controller:broadcast(ConnPids, 'world.tick', ToSend),
     {noreply, NewState}.
 
 
@@ -94,37 +95,31 @@ safe_map(F, [I|Is]) ->
             Is
     end.
 
-ms() ->
-    N = now(),
-    element(2, N) * 1000 + trunc(element(3, N) / 1000).
 
 handle_tick(State) ->
-    Now = ms(),
+    Now = tri_utils:ms(),
     LastUpdate = State#state.last_update,
-    NewState = State#state{last_update=Now,
-                           tick_number=State#state.tick_number + 1},
     DT = max(Now - LastUpdate, 0),
+    ObjectsToSend = [],
     {ok, LevelSize} = application:get_env(tri, level_size),
     {ok, ReflFactor} = application:get_env(tri, reflection_factor),
-    PlayersTick = fun([PlayerId, PlayerPid]) ->
-        {ok, Pos1, Angle, Bullet} = tri_player:tick(PlayerPid, DT),
-        {Pos2, TouchData} = check_borders(Pos1, LevelSize),
-        case TouchData of
-            none -> ok;
-            TouchData ->
-                tri_player:touch_border(PlayerPid, Pos2, TouchData, ReflFactor)
-        end,
-        PlayerData = [{pos, Pos2}, {angle, Angle}],
-        {PlayerId, PlayerData, Bullet}
+    TickPlayer = fun(Player) ->
+        tick_player(DT, LevelSize, ReflFactor, Player)
     end,
     Players = ets:match(State#state.players, {'$1', '$2', '_'}),
-    TickData = safe_map(PlayersTick, Players),
-    ToSend = [{PlayerId, PlayerData} || {PlayerId, PlayerData, _} <- TickData],
-    Bullets = [{PlayerId, Bullet} ||
-               {PlayerId, _, Bullet} <- TickData,
-               Bullet /= none],
-    %TODO: process bullets
-    {ToSend, NewState}.
+    TickPlayersData = safe_map(TickPlayer, Players),
+    PlayersToSend = [{PlayerId, PlayerData} ||
+                     {PlayerId, PlayerData, _} <- TickPlayersData],
+    NewBullets = [{PlayerId, BulletPos} ||
+                  {PlayerId, _, BulletPos} <- TickPlayersData,
+                  BulletPos /= none],
+    Bullets1 = tick_bullets(DT, State#state.bullets),
+    Bullets2 = add_bullets(Bullets1, NewBullets),
+    BulletsToSend = [{BulletId, Pos} || {BulletId, _, Pos} <- Bullets2],
+    NewState = State#state{last_update=Now,
+                           tick_number=State#state.tick_number + 1,
+                           bullets=Bullets2},
+    {ObjectsToSend ++ PlayersToSend, BulletsToSend, NewState}.
 
 check_borders([X1, Y1], [W, H]) ->
     Pos2 = [X2, Y2] = [erlang:max(erlang:min(X1, W), 0),
@@ -137,6 +132,32 @@ check_borders([X1, Y1], [W, H]) ->
     end,
     {Pos2, TouchData}.
 
+tick_player(DT, LevelSize, ReflFactor, [PlayerId, PlayerPid]) ->
+    {ok, Pos1, Angle, Fire} = tri_player:tick(PlayerPid, DT),
+    {Pos2, TouchData} = check_borders(Pos1, LevelSize),
+    case TouchData of
+        none -> ok;
+        TouchData ->
+            tri_player:touch_border(PlayerPid, Pos2, TouchData, ReflFactor)
+    end,
+    PlayerData = [{pos, Pos2}, {angle, Angle}],
+    BulletPos = case Fire of
+        true -> Pos2;
+        false -> none
+    end,
+    {PlayerId, PlayerData, BulletPos}.
+
+add_bullets(Bullets, New) ->
+    Bullets ++ [{bullet_id(), PlayerId, Pos} || {PlayerId, Pos} <- New].
+
+tick_bullets(DT, Bullets) ->
+    Bullets.
+
+bullet_id() ->
+    N = now(),
+    A = integer_to_binary(element(2, N)),
+    B = integer_to_binary(element(3, N)),
+    <<A/binary, B/binary>>.
 
 
 % external interface
