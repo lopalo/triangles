@@ -20,6 +20,7 @@ init_per_suite(Config) ->
     application:set_env(tri, player_spawn_step, 77),
     application:set_env(tri, reflection_factor, 1),
     application:set_env(tri, fire_rate, 1),
+    application:set_env(tri, bullet_speed, 600),
     Config.
 
 end_per_suite(Config) ->

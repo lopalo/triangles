@@ -1,6 +1,6 @@
 -module(tri_utils).
 
--export([pack_json/1, unpack_json/1, atom_keys/1, ms/0]).
+-export([pack_json/1, unpack_json/1, atom_keys/1, ms/0, vect_transform/2]).
 
 
 pack_json([{_Key, _Value}|_Is] = Items) ->
@@ -26,4 +26,9 @@ ms() ->
     N = now(),
     element(2, N) * 1000 + trunc(element(3, N) / 1000).
 
+vect_transform(Length, Angle) ->
+    Rad = Angle / 57.3,
+    X = Length * math:cos(Rad),
+    Y = Length * math:sin(Rad),
+    [X, Y].
 

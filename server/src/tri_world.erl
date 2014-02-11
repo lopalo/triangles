@@ -99,7 +99,7 @@ safe_map(F, [I|Is]) ->
 handle_tick(State) ->
     Now = tri_utils:ms(),
     LastUpdate = State#state.last_update,
-    DT = max(Now - LastUpdate, 0),
+    DT = max(Now - LastUpdate, 0) / 1000,
     ObjectsToSend = [],
     {ok, LevelSize} = application:get_env(tri, level_size),
     {ok, ReflFactor} = application:get_env(tri, reflection_factor),
@@ -110,12 +110,12 @@ handle_tick(State) ->
     TickPlayersData = safe_map(TickPlayer, Players),
     PlayersToSend = [{PlayerId, PlayerData} ||
                      {PlayerId, PlayerData, _} <- TickPlayersData],
-    NewBullets = [{PlayerId, BulletPos} ||
-                  {PlayerId, _, BulletPos} <- TickPlayersData,
-                  BulletPos /= none],
+    NewBullets = [{PlayerId, BulletData} ||
+                  {PlayerId, _, BulletData} <- TickPlayersData,
+                  BulletData /= none],
     Bullets1 = tick_bullets(DT, State#state.bullets),
     Bullets2 = add_bullets(Bullets1, NewBullets),
-    BulletsToSend = [{BulletId, Pos} || {BulletId, _, Pos} <- Bullets2],
+    BulletsToSend = [{BulletId, Pos} || {BulletId, _, Pos, _} <- Bullets2],
     NewState = State#state{last_update=Now,
                            tick_number=State#state.tick_number + 1,
                            bullets=Bullets2},
@@ -141,17 +141,24 @@ tick_player(DT, LevelSize, ReflFactor, [PlayerId, PlayerPid]) ->
             tri_player:touch_border(PlayerPid, Pos2, TouchData, ReflFactor)
     end,
     PlayerData = [{pos, Pos2}, {angle, Angle}],
-    BulletPos = case Fire of
-        true -> Pos2;
+    BulletData = case Fire of
+        true -> {Pos2, Angle};
         false -> none
     end,
-    {PlayerId, PlayerData, BulletPos}.
+    {PlayerId, PlayerData, BulletData}.
 
 add_bullets(Bullets, New) ->
-    Bullets ++ [{bullet_id(), PlayerId, Pos} || {PlayerId, Pos} <- New].
+    Bullets ++ [{bullet_id(), PlayerId, Pos, Angle} ||
+                {PlayerId, {Pos, Angle}} <- New].
 
 tick_bullets(DT, Bullets) ->
-    Bullets.
+    {ok, BulletSpeed} = application:get_env(tri, bullet_speed),
+    D = BulletSpeed * DT,
+    Fun = fun({Id, PlayerId, [X, Y], Angle}) ->
+        [DX, DY] = tri_utils:vect_transform(D, Angle),
+        {Id, PlayerId, [X + DX, Y + DY], Angle}
+    end,
+    lists:map(Fun, Bullets).
 
 bullet_id() ->
     N = now(),

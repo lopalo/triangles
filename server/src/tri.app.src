@@ -18,6 +18,7 @@
       {force_factor, 1000},
       {reflection_factor, 0.3},
       {player_spawn_step, 77},
-      {fire_rate, 1}
+      {fire_rate, 1},
+      {bullet_speed, 600}
   ]}
  ]}.

@@ -55,6 +55,14 @@ class _World(object):
     def world_pos(self, value):
         self._objects['background'].pos = value
 
+    @property
+    def window_center(self):
+        return Vector(Window.size) / 2
+
+    @property
+    def duration(self):
+        return self._server_tick / 1000.
+
     def _add_object(self, ident, data=None, index=0):
         type = data['type']
         if type == 'background':
@@ -88,8 +96,7 @@ class _World(object):
         self._add_object('background', dict(size=level_size,
                                             type='background'))
         user_data = objects[uid]
-        window_center = Vector(Window.size) / 2
-        world_pos = window_center - Vector(user_data['pos'])
+        world_pos = self.window_center - Vector(user_data['pos'])
         self.world_pos = world_pos
         self.handle_objects_info(objects)
 
@@ -100,54 +107,65 @@ class _World(object):
             self._add_object(ident, data)
 
     def handle_tick(self, objects, bullets):
-        #TODO: divide this method
-        objs = self._objects
-        duration = self._server_tick / 1000.
-        window_center = Vector(Window.size) / 2
         user_data = objects[self._uid]
-        world_pos = window_center - Vector(user_data['pos'])
+        world_pos = self.window_center - Vector(user_data['pos'])
         #NOTE: strange bug when using pos instead x, y
-        bg = objs['background']
+        bg = self._objects['background']
         Animation.cancel_all(bg, 'x', 'y')
-        Animation(x=world_pos[0], y=world_pos[1], duration=duration).start(bg)
-        user_obj = objs[self._uid]
+        Animation(x=world_pos[0],
+                  y=world_pos[1],
+                  duration=self.duration).start(bg)
+        user_obj = self._objects[self._uid]
         Animation.cancel_all(user_obj, 'center', 'angle')
-        Animation(center=window_center,
+        Animation(center=self.window_center,
                   angle=user_data['angle'],
-                  duration=duration).start(user_obj)
+                  duration=self.duration).start(user_obj)
+
+        self._tick_objects(objects, world_pos)
+        self._tick_bullets(bullets, world_pos)
+        self._update_temporary_objects(objects, bullets)
+
+    def _tick_objects(self, tick_objects, new_world_pos):
+        objects = self._objects
         unknown_objects = set()
-        for ident, value in objects.items():
+        for ident, value in tick_objects.items():
             if ident == self._uid:
                 continue
-            if ident not in objs:
+            if ident not in objects:
                 unknown_objects.add(ident)
                 continue
 
-            obj = objs[ident]
+            obj = objects[ident]
             if isinstance(obj, TemporaryObject):
                 obj.ttl = OBJECT_TTL
             pos = Vector(value['pos'])
-            pos += world_pos
+            pos += new_world_pos
             Animation.cancel_all(obj, 'center', 'angle')
             Animation(center=pos,
                       angle=value['angle'],
-                      duration=duration).start(obj)
+                      duration=self.duration).start(obj)
         if unknown_objects:
             Controller.send(cmd="world.get_objects_info",
                             args=dict(idents=list(unknown_objects)))
+
+    def _tick_bullets(self, bullets, new_world_pos):
+        if not bullets: #NOTE: can be an empty list
+            return
+        objects = self._objects
         for ident, pos in bullets.items():
-            if ident in objs:
-                bullet = objs[ident]
+            if ident in objects:
+                bullet = objects[ident]
                 #TODO: animation
-                bullet.center = Vector(pos) + world_pos
+                bullet.center = Vector(pos) + new_world_pos
                 if bullet.hidden:
                     bullet.show()
                 bullet.ttl = BULLET_TTL
             else:
                 bullet = self._add_object(ident, dict(type='bullet', pos=pos))
 
-        for ident in set(objs) - set(objects) - set(bullets):
-            obj = objs[ident]
+    def _update_temporary_objects(self, objects, bullets):
+        for ident in set(self._objects) - set(objects) - set(bullets):
+            obj = self._objects[ident]
             if not isinstance(obj, TemporaryObject):
                 continue
             obj.ttl -= 1

@@ -70,15 +70,9 @@ handle_client_cmd(commands, Args, Player) ->
     end,
     Player#player{
         angle=NewAngle,
-        force=vect_transform(Length, NewAngle),
+        force=tri_utils:vect_transform(Length, NewAngle),
         fire=dict:fetch(fire, Args)
     }.
-
-vect_transform(Length, Angle) ->
-    Rad = Angle / 57.3,
-    X = Length * math:cos(Rad),
-    Y = Length * math:sin(Rad),
-    [X, Y].
 
 pid_to_id() ->
     list_to_binary("user:" ++ pid_to_list(self())).
@@ -132,8 +126,7 @@ client_cmd(PlayerPid, Cmd, Args) ->
     gen_server:cast(PlayerPid, {client_cmd, {Cmd, Args}}).
 
 tick(PlayerPid, DT) ->
-    Seconds = DT / 1000,
-    gen_server:call(PlayerPid, {tick, Seconds}).
+    gen_server:call(PlayerPid, {tick, DT}).
 
 get_client_info(PlayerdPid) ->
     gen_server:call(PlayerdPid, get_client_info).
