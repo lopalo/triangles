@@ -10,7 +10,6 @@
   ]},
   {mod, {tri_app, []}},
   {env, [
-      %TODO: move settings to yaml file
       {port, 9000},
       {server_tick, 100}, %milliseconds
       {level_size, [1000, 700]},
@@ -18,7 +17,7 @@
       {force_factor, 1000},
       {reflection_factor, 0.3},
       {player_spawn_step, 77},
-      {fire_rate, 1},
+      {fire_rate, 4},
       {bullet_speed, 600}
   ]}
  ]}.

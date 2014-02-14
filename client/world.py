@@ -10,7 +10,6 @@ from controller import Controller, UserCommands
 
 
 OBJECT_TTL = 10
-BULLET_TTL = 2
 
 class WorldError(Exception):
     pass
@@ -111,19 +110,13 @@ class _World(object):
         world_pos = self.window_center - Vector(user_data['pos'])
         #NOTE: strange bug when using pos instead x, y
         bg = self._objects['background']
-        Animation.cancel_all(bg, 'x', 'y')
-        Animation(x=world_pos[0],
-                  y=world_pos[1],
-                  duration=self.duration).start(bg)
+        animation(bg, self.duration, x=world_pos[0], y=world_pos[1])
         user_obj = self._objects[self._uid]
-        Animation.cancel_all(user_obj, 'center', 'angle')
-        Animation(center=self.window_center,
-                  angle=user_data['angle'],
-                  duration=self.duration).start(user_obj)
-
+        animation(user_obj, self.duration,
+                  center=self.window_center,
+                  angle=user_data['angle'])
         self._tick_objects(objects, world_pos)
         self._tick_bullets(bullets, world_pos)
-        self._update_temporary_objects(objects, bullets)
 
     def _tick_objects(self, tick_objects, new_world_pos):
         objects = self._objects
@@ -140,37 +133,37 @@ class _World(object):
                 obj.ttl = OBJECT_TTL
             pos = Vector(value['pos'])
             pos += new_world_pos
-            Animation.cancel_all(obj, 'center', 'angle')
-            Animation(center=pos,
-                      angle=value['angle'],
-                      duration=self.duration).start(obj)
+            animation(obj, self.duration, center=pos, angle=value['angle'])
         if unknown_objects:
             Controller.send(cmd="world.get_objects_info",
                             args=dict(idents=list(unknown_objects)))
 
-    def _tick_bullets(self, bullets, new_world_pos):
-        if not bullets: #NOTE: can be an empty list
-            return
-        objects = self._objects
-        for ident, pos in bullets.items():
-            if ident in objects:
-                bullet = objects[ident]
-                #TODO: animation
-                bullet.center = Vector(pos) + new_world_pos
-                if bullet.hidden:
-                    bullet.show()
-                bullet.ttl = BULLET_TTL
-            else:
-                bullet = self._add_object(ident, dict(type='bullet', pos=pos))
-
-    def _update_temporary_objects(self, objects, bullets):
-        for ident in set(self._objects) - set(objects) - set(bullets):
+        for ident in set(objects) - set(tick_objects):
             obj = self._objects[ident]
             if not isinstance(obj, TemporaryObject):
                 continue
             obj.ttl -= 1
             if obj.ttl <= 0:
                 self._remove_object(ident)
+
+    def _tick_bullets(self, tick_bullets, new_world_pos):
+        if not tick_bullets: #NOTE: can be an empty list
+            tick_bullets = {}
+        objects = self._objects
+        for ident, pos in tick_bullets.items():
+            if ident in objects:
+                bullet = objects[ident]
+                pos = Vector(pos) + new_world_pos
+                animation(bullet, self.duration, center=pos)
+                if bullet.hidden:
+                    bullet.show()
+            else:
+                bullet = self._add_object(ident, dict(type='bullet', pos=pos))
+
+        bullets = set(k for k, v in objects.items() if isinstance(v, Bullet))
+        for ident in bullets - set(tick_bullets):
+            self._remove_object(ident)
+
 
 
 class Background(Widget):
@@ -193,8 +186,8 @@ class Triangle(TemporaryObject):
     angle = NumericProperty(0)
 
 
-class Bullet(TemporaryObject):
-    ttl = NumericProperty(BULLET_TTL)
+class Bullet(Widget):
+    radius = NumericProperty(0)
 
     def show(self):
         self.opacity = 1
@@ -202,6 +195,9 @@ class Bullet(TemporaryObject):
     def hidden(self):
         return not self.opacity
 
+def animation(obj, duration, **kwargs):
+    Animation.cancel_all(obj, *kwargs) # unpack keys
+    Animation(duration=duration, **kwargs).start(obj)
 
 World = _World()
 

@@ -7,6 +7,7 @@
 
 
 -record(state, {players, bullets, last_update, tick_number=0}).
+-record(bullet, {id, player_id, pos, angle}).
 
 % behaviour callbacks
 init(_Args) ->
@@ -38,9 +39,9 @@ handle_info(tick, State) ->
     tri_controller:broadcast(ConnPids, 'world.tick', ToSend),
     {noreply, NewState}.
 
-
 terminate(_Reason, _State) ->
     ok.
+
 
 % internal functions
 handle_client_cmd(start, Args, ConnPid, State) ->
@@ -113,13 +114,15 @@ handle_tick(State) ->
     NewBullets = [{PlayerId, BulletData} ||
                   {PlayerId, _, BulletData} <- TickPlayersData,
                   BulletData /= none],
-    Bullets1 = tick_bullets(DT, State#state.bullets),
+    Bullets1 = tick_bullets(DT, LevelSize, State#state.bullets),
     Bullets2 = add_bullets(Bullets1, NewBullets),
-    BulletsToSend = [{BulletId, Pos} || {BulletId, _, Pos, _} <- Bullets2],
+    BulletsToSend = [{BulletId, Pos} ||
+                     #bullet{id=BulletId, pos=Pos} <- Bullets2],
     NewState = State#state{last_update=Now,
                            tick_number=State#state.tick_number + 1,
                            bullets=Bullets2},
     {ObjectsToSend ++ PlayersToSend, BulletsToSend, NewState}.
+
 
 check_borders([X1, Y1], [W, H]) ->
     Pos2 = [X2, Y2] = [erlang:max(erlang:min(X1, W), 0),
@@ -131,6 +134,7 @@ check_borders([X1, Y1], [W, H]) ->
         {DX, DY} -> {DX / abs(DX), DY / abs(DY)}
     end,
     {Pos2, TouchData}.
+
 
 tick_player(DT, LevelSize, ReflFactor, [PlayerId, PlayerPid]) ->
     {ok, Pos1, Angle, Fire} = tri_player:tick(PlayerPid, DT),
@@ -147,18 +151,31 @@ tick_player(DT, LevelSize, ReflFactor, [PlayerId, PlayerPid]) ->
     end,
     {PlayerId, PlayerData, BulletData}.
 
-add_bullets(Bullets, New) ->
-    Bullets ++ [{bullet_id(), PlayerId, Pos, Angle} ||
-                {PlayerId, {Pos, Angle}} <- New].
 
-tick_bullets(DT, Bullets) ->
+add_bullets(Bullets, New) ->
+    Bullets ++ [#bullet{id=bullet_id(),
+                        player_id=PlayerId,
+                        pos=Pos,
+                        angle=Angle} || {PlayerId, {Pos, Angle}} <- New].
+
+
+tick_bullets(DT, [W, H], Bullets1) ->
     {ok, BulletSpeed} = application:get_env(tri, bullet_speed),
     D = BulletSpeed * DT,
-    Fun = fun({Id, PlayerId, [X, Y], Angle}) ->
+    Move = fun(#bullet{pos=[X, Y], angle=Angle} = Bullet) ->
         [DX, DY] = tri_utils:vect_transform(D, Angle),
-        {Id, PlayerId, [X + DX, Y + DY], Angle}
+        Bullet#bullet{pos=[trunc(X + DX), trunc(Y + DY)]}
     end,
-    lists:map(Fun, Bullets).
+    Bullets2 = lists:map(Move, Bullets1),
+    CheckBorders = fun
+        (#bullet{pos=[X, Y]}) when X > 0, X < W, Y > 0, Y < H ->
+            true;
+        (_) ->
+            false
+    end,
+    Bullets3 = lists:filter(CheckBorders, Bullets2),
+    Bullets3.
+
 
 bullet_id() ->
     N = now(),

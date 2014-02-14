@@ -106,7 +106,7 @@ tick_fire(Player) ->
             LF = Player#player.last_fire,
             Now = tri_utils:ms(),
             if
-                (Now - LF) / 1000 < FR ->
+                (Now - LF) / 1000 < 1 / FR ->
                     {false, Player};
                 true ->
                     {true, Player#player{last_fire=Now}}
