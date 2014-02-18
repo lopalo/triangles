@@ -1,3 +1,4 @@
+from time import time
 from kivy.lang import Builder
 from kivy.properties import ListProperty, NumericProperty, StringProperty
 from kivy.uix.widget import Widget
@@ -22,9 +23,11 @@ class _World(object):
         Builder.load_file('world.kv', rulesonly=True)
         self._widget = Widget()
         self._user_commands = None
-        self._server_tick = None
+        self._server_tick_duration = None
         self._uid = None
         self._objects = {}
+        self._last_tick = None
+        self._tick = time()
 
     def activate(self, parent, name):
         Controller.add_handler('world', self)
@@ -60,7 +63,18 @@ class _World(object):
 
     @property
     def duration(self):
-        return self._server_tick / 1000.
+        last_tick = self._last_tick
+        server_tick = self._server_tick_duration
+        if last_tick is None:
+            return server_tick
+        else:
+            delay = self._tick - last_tick - server_tick
+            if 0 < delay < server_tick:
+                return server_tick - delay
+            elif delay < 0:
+                return server_tick
+            else:
+                return 0
 
     def _add_object(self, ident, data=None, index=0):
         type = data['type']
@@ -89,7 +103,8 @@ class _World(object):
 
     def handle_init(self, uid, server_tick, level_size, objects):
         self._uid = uid
-        self._server_tick = server_tick
+        server_tick = server_tick / 1000.
+        self._server_tick_duration = server_tick
         self._user_commands = UserCommands(uid, server_tick)
         self._user_commands.activate()
         self._add_object('background', dict(size=level_size,
@@ -106,6 +121,7 @@ class _World(object):
             self._add_object(ident, data)
 
     def handle_tick(self, objects, bullets):
+        self._tick = time()
         user_data = objects[self._uid]
         world_pos = self.window_center - Vector(user_data['pos'])
         #NOTE: strange bug when using pos instead x, y
@@ -117,6 +133,7 @@ class _World(object):
                   angle=user_data['angle'])
         self._tick_objects(objects, world_pos)
         self._tick_bullets(bullets, world_pos)
+        self._last_tick = self._tick
 
     def _tick_objects(self, tick_objects, new_world_pos):
         objects = self._objects

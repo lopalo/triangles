@@ -22,7 +22,7 @@ class UserCommands(object):
         self._fire = state
 
     def activate(self):
-        Clock.schedule_interval(self.send, self._server_tick / 1000.)
+        Clock.schedule_interval(self.send, self._server_tick)
 
     def deactivate(self):
         Clock.unschedule(self.send)

@@ -23,6 +23,7 @@ class StartMenu(BoxLayout):
 
 
 class LeftControl(Widget):
+    #TODO: keyboard support
     outer_rad = NumericProperty(0)
     inner_x = NumericProperty(0)
     inner_y = NumericProperty(0)
