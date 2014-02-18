@@ -21,6 +21,7 @@ init_per_suite(Config) ->
     application:set_env(tri, reflection_factor, 1),
     application:set_env(tri, fire_rate, 1),
     application:set_env(tri, bullet_speed, 600),
+    application:set_env(tri, hit_circle, 6),
     Config.
 
 end_per_suite(Config) ->

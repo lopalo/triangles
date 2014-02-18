@@ -85,7 +85,7 @@ tick_move(DT, #player{speed=Speed1, pos=Pos,
     {ok, MaxSpeed} = application:get_env(tri, max_speed),
     {ok, FF} = application:get_env(tri, force_factor),
     Speed2 = [SX2, SY2] = [SX1 + FX * DT * FF, SY1 + FY * DT * FF],
-    Speed = math:sqrt(math:pow(SX2, 2) + math:pow(SY2, 2)),
+    Speed = tri_utils:vect_length(SX2, SY2),
     Speed3 = [SX3, SY3] = if
         Speed =< MaxSpeed ->
             Speed2;

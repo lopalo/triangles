@@ -1,6 +1,7 @@
 -module(tri_utils).
 
--export([pack_json/1, unpack_json/1, atom_keys/1, ms/0, vect_transform/2]).
+-export([pack_json/1, unpack_json/1, atom_keys/1, ms/0,
+         vect_transform/2, vect_length/2]).
 
 
 pack_json([{_Key, _Value}|_Is] = Items) ->
@@ -14,10 +15,13 @@ pack_json(Item) ->
 unpack_json({[{_Key, _Value}|_Is] = Items}) ->
     NewItems = [{Key, unpack_json(Value)} || {Key, Value} <- Items],
     NewItems;
+unpack_json({[]}) ->
+    [];
 unpack_json(Items) when is_list(Items) ->
     [unpack_json(I) || I <- Items];
 unpack_json(Item) ->
     Item.
+
 
 atom_keys(List) ->
     [{binary_to_atom(Key, utf8), Value} || {Key, Value} <- List].
@@ -31,4 +35,7 @@ vect_transform(Length, Angle) ->
     X = Length * math:cos(Rad),
     Y = Length * math:sin(Rad),
     [X, Y].
+
+vect_length(X, Y) ->
+    math:sqrt(math:pow(X, 2) + math:pow(Y, 2)).
 

@@ -23,5 +23,6 @@ start_link() ->
 %% ===================================================================
 
 init([]) ->
-    {ok, {{one_for_one, 5, 10}, [?CHILD(tri_world, worker)]}}.
+    Children = [?CHILD(tri_world, worker), ?CHILD(tri_scores, worker)],
+    {ok, {{one_for_one, 5, 10}, Children}}.
 

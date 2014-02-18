@@ -15,6 +15,8 @@ handle([world, Cmd], Args, _PlayerPid) ->
     tri_world:client_cmd(Cmd, Args);
 handle([user, Cmd], Args, PlayerPid) ->
     tri_player:client_cmd(PlayerPid, Cmd, Args);
+handle([scores, Cmd], Args, _PlayerPid) ->
+    tri_scores:client_cmd(Cmd, Args);
 handle([echo], Args, _PlayerPid) ->
     Text = dict:fetch(text, Args),
     ReplyText = io_lib:format("Echo: ~s", [Text]),

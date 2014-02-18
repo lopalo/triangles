@@ -18,6 +18,7 @@
       {reflection_factor, 0.3},
       {player_spawn_step, 77},
       {fire_rate, 4},
-      {bullet_speed, 600}
+      {bullet_speed, 600},
+      {hit_circle, 40}
   ]}
  ]}.

@@ -7,10 +7,10 @@
 
 
 -record(state, {players, bullets, last_update, tick_number=0}).
--record(bullet, {id, player_id, pos, angle}).
+-record(bullet, {id, shooter_id, pos, angle}).
 
 % behaviour callbacks
-init(_Args) ->
+init([]) ->
     Players = ets:new(players, [set, private, {keypos, 1}]),
     Bullets = [],
     {ok, ServerTick} = application:get_env(tri, server_tick),
@@ -34,7 +34,7 @@ handle_info(tick, State) ->
     {ok, ServerTick} = application:get_env(tri, server_tick),
     timer:send_after(ServerTick, tick),
     {Objects, Bullets, NewState} = handle_tick(State),
-    ConnPids = [C || [C] <- ets:match(State#state.players, {'_', '_', '$3'})],
+    ConnPids = get_conn_pids(State#state.players),
     ToSend = [{objects, Objects}, {bullets, Bullets}],
     tri_controller:broadcast(ConnPids, 'world.tick', ToSend),
     {noreply, NewState}.
@@ -96,6 +96,9 @@ safe_map(F, [I|Is]) ->
             Is
     end.
 
+get_conn_pids(Players) ->
+    [C || [C] <- ets:match(Players, {'_', '_', '$3'})].
+
 
 handle_tick(State) ->
     Now = tri_utils:ms(),
@@ -116,11 +119,16 @@ handle_tick(State) ->
                   BulletData /= none],
     Bullets1 = tick_bullets(DT, LevelSize, State#state.bullets),
     Bullets2 = add_bullets(Bullets1, NewBullets),
+    {Bullets3, UpdateScores} = handle_collisions(TickPlayersData, Bullets2),
+    case UpdateScores of
+        true -> tri_scores:send_update(get_conn_pids(State#state.players));
+        false -> ok
+    end,
     BulletsToSend = [{BulletId, Pos} ||
                      #bullet{id=BulletId, pos=Pos} <- Bullets2],
     NewState = State#state{last_update=Now,
                            tick_number=State#state.tick_number + 1,
-                           bullets=Bullets2},
+                           bullets=Bullets3},
     {ObjectsToSend ++ PlayersToSend, BulletsToSend, NewState}.
 
 
@@ -154,7 +162,7 @@ tick_player(DT, LevelSize, ReflFactor, [PlayerId, PlayerPid]) ->
 
 add_bullets(Bullets, New) ->
     Bullets ++ [#bullet{id=bullet_id(),
-                        player_id=PlayerId,
+                        shooter_id=PlayerId,
                         pos=Pos,
                         angle=Angle} || {PlayerId, {Pos, Angle}} <- New].
 
@@ -182,6 +190,49 @@ bullet_id() ->
     A = integer_to_binary(element(2, N)),
     B = integer_to_binary(element(3, N)),
     <<A/binary, B/binary>>.
+
+
+handle_collisions(Players, Bullets) ->
+    %TODO: use more effective algorithm
+    {ok, HitCircle} = application:get_env(tri, hit_circle),
+    CheckHit = fun([TX, TY], [BX, BY]) ->
+        tri_utils:vect_length(TX - BX, TY - BY) < HitCircle
+    end,
+    Coll = fun
+        (CF, [{TargetId, [{pos, PlPos}, _], _}|RestPlayers], Bullets1) ->
+            Detect = fun
+                (DF, [Bullet|RestBullets]) ->
+                    ShooterId = Bullet#bullet.shooter_id,
+                    case TargetId /= ShooterId andalso
+                            CheckHit(PlPos, Bullet#bullet.pos) of
+                        true ->
+                            {{TargetId, ShooterId}, RestBullets};
+                        false ->
+                            {Hit, NewBullets} = DF(DF, RestBullets),
+                            {Hit, [Bullet|NewBullets]}
+                    end;
+                (_DF, []) ->
+                    {none, []}
+            end,
+            {Hit, Bullets2} = Detect(Detect, Bullets1),
+            {NewHits, Bullets3} = CF(CF, RestPlayers, Bullets2),
+            case Hit of
+                none ->
+                    {NewHits, Bullets3};
+                {_, _} ->
+                    {[Hit|NewHits], Bullets3}
+            end;
+        (_CF, [], RestBullets) ->
+            {[], RestBullets};
+        (_CF, _RestPlayers, []) ->
+            {[], []}
+    end,
+    {Hits, NewBullets} = Coll(Coll, Players, Bullets),
+    UpdateScores = fun({TargetId, ShooterId}) ->
+        tri_scores:target_hit(TargetId, ShooterId)
+    end,
+    lists:foreach(UpdateScores, Hits),
+    {NewBullets, Hits /= []}.
 
 
 % external interface

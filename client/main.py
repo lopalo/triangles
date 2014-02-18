@@ -83,17 +83,19 @@ class Scores(BoxLayout):
 
     def __init__(self, *args, **kwargs):
         super(Scores, self).__init__(*args, **kwargs)
-        #TODO: cleanup
-        score_list = [('one', 1111), ('two', 22222), ('three', 3333),
-                      ('aaa', 1111), ('bbb', 22222), ('ccc', 3333),
-                      ('eee', 1111), ('ddddddddd', 22222), ('fffffffff', 3333),
-                      ('foo', 1111), ('bar', 22222), ('zzzz', 3333)]
-        self.handle_init(score_list)
+        self._records = []
+        for _ in range(self.records):
+            record = Label(text='')
+            self.add_widget(record)
+            self._records.append(record)
 
-    def handle_init(self, score_list):
-        for name, score in score_list[:self.records]:
-            text = "{}: {}".format(name, score)
-            self.add_widget(Label(text=text))
+    def handle_update(self, scores):
+        if not scores: #NOTE: can be an empty list
+            return
+        score_list = sorted(scores.items(), key=lambda i: i[1],
+                                    reverse=True)[:self.records]
+        for (name, score), widget in zip(score_list, self._records):
+            widget.text = "{}: {}".format(name, score)
 
 
 class UI(Widget):
@@ -106,9 +108,8 @@ class GameWidget(Widget):
 
     def initialize(self, *args, **kwargs):
         World.activate(self, *args, **kwargs)
-        #TODO
-        #Controller.send(cmd='scores.request_init', args={})
-        #Controller.add_handler('scores', self.ui.scores)
+        Controller.send(cmd='scores.request_update', args={})
+        Controller.add_handler('scores', self.ui.scores)
 
 
 class MainWidget(Widget):
