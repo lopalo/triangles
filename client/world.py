@@ -74,7 +74,7 @@ class _World(object):
             elif delay < 0:
                 return server_tick
             else:
-                return 0
+                return .00000001
 
     def _add_object(self, ident, data=None, index=0):
         type = data['type']
@@ -113,6 +113,7 @@ class _World(object):
         world_pos = self.window_center - Vector(user_data['pos'])
         self.world_pos = world_pos
         self.handle_objects_info(objects)
+        Controller.send(cmd='scores.request_update', args={})
 
     def handle_objects_info(self, objects):
         for ident, data in objects.items():

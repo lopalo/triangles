@@ -37,7 +37,7 @@ end_per_testcase(_, Config) ->
 % test cases
 test_player_tick(_Config) ->
     DT = 0.2,
-    Player = #player{uid = <<"user:1">>,
+    Player = #player{id = <<"user:1">>,
                      name = <<"user">>,
                      angle = 48,
                      pos = [23, 39],

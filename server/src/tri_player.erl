@@ -11,9 +11,14 @@
 
 % behaviour callbacks
 init([ConnPid, PlayerData]) ->
-    tri_world:add_player(pid_to_id(), ConnPid),
+    process_flag(trap_exit, true),
+    Id = pid_to_id(),
+    Name = dict:fetch(name, PlayerData),
+    tri_world:add_player(Id, ConnPid),
+    tri_scores:add_player(Id, Name, ConnPid),
     Player = #player{
-        name=dict:fetch(name, PlayerData),
+        id=Id,
+        name=Name,
         pos=dict:fetch(pos, PlayerData),
         angle=dict:fetch(angle, PlayerData),
         last_fire=tri_utils:ms()
@@ -57,7 +62,8 @@ handle_cast(stop, Player) ->
     {stop, normal, Player}.
 
 
-terminate(_Reason, _Player) ->
+terminate(_Reason, Player) ->
+    tri_scores:remove_player(Player#player.id),
     ok.
 
 
@@ -98,6 +104,7 @@ tick_move(DT, #player{speed=Speed1, pos=Pos,
 
 
 tick_fire(Player) ->
+    %TODO: fix bullet's speed
     case Player#player.fire of
         false ->
             {false, Player};

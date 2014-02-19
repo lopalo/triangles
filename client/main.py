@@ -3,6 +3,7 @@ import json
 import logging
 
 from kivy.app import App
+from kivy.core.window import Window
 from kivy.uix.widget import Widget
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
@@ -23,7 +24,6 @@ class StartMenu(BoxLayout):
 
 
 class LeftControl(Widget):
-    #TODO: keyboard support
     outer_rad = NumericProperty(0)
     inner_x = NumericProperty(0)
     inner_y = NumericProperty(0)
@@ -95,6 +95,8 @@ class Scores(BoxLayout):
             return
         score_list = sorted(scores.items(), key=lambda i: i[1],
                                     reverse=True)[:self.records]
+        for widget in self._records:
+            widget.text = ''
         for (name, score), widget in zip(score_list, self._records):
             widget.text = "{}: {}".format(name, score)
 
@@ -109,7 +111,6 @@ class GameWidget(Widget):
 
     def initialize(self, *args, **kwargs):
         World.activate(self, *args, **kwargs)
-        Controller.send(cmd='scores.request_update', args={})
         Controller.add_handler('scores', self.ui.scores)
 
 
@@ -124,6 +125,47 @@ class MainWidget(Widget):
         self.game_widget = GameWidget()
         self.game_widget.initialize(name)
         self.add_widget(self.game_widget)
+
+
+class KeyBoard(object):
+
+    def __init__(self):
+        keyboard = Window.request_keyboard(None, self)
+        keyboard.bind(on_key_down=self.on_key_down,
+                      on_key_up=self.on_key_up)
+        self._direction = Vector(0, 0)
+
+    def on_key_down(self, keyboard, (code, kname), text, mod):
+        if kname == 'spacebar':
+            World.fire(True)
+        if kname == 'right':
+            self._direction[0] = 1
+        if kname == 'left':
+            self._direction[0] = -1
+        if kname == 'up':
+            self._direction[1] = 1
+        if kname == 'down':
+            self._direction[1] = -1
+        self._update_move_vector()
+
+    def on_key_up(self, keyboard, (code, kname)):
+        if kname == 'spacebar':
+            World.fire(False)
+        if kname == 'right':
+            self._direction[0] = 0
+        if kname == 'left':
+            self._direction[0] = 0
+        if kname == 'up':
+            self._direction[1] = 0
+        if kname == 'down':
+            self._direction[1] = 0
+        self._update_move_vector()
+
+    def _update_move_vector(self):
+        direct = self._direction
+        length, angle = direct.length(), direct.angle(Vector(1, 0))
+        World.move_vector(min(length, 1), angle)
+
 
 
 class GameApp(App):
@@ -147,6 +189,7 @@ if __name__ == '__main__':
     if 'TRI_START_ARGS' in os.environ:
         with open(os.environ['TRI_START_ARGS']) as f:
             start_args = json.load(f)
+    KeyBoard()
     GameApp(start_args=start_args).run()
 
 

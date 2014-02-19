@@ -34,7 +34,7 @@ handle_info(tick, State) ->
     {ok, ServerTick} = application:get_env(tri, server_tick),
     timer:send_after(ServerTick, tick),
     {Objects, Bullets, NewState} = handle_tick(State),
-    ConnPids = get_conn_pids(State#state.players),
+    ConnPids = [C || [C] <- ets:match(State#state.players, {'_', '_', '$3'})],
     ToSend = [{objects, Objects}, {bullets, Bullets}],
     tri_controller:broadcast(ConnPids, 'world.tick', ToSend),
     {noreply, NewState}.
@@ -96,9 +96,6 @@ safe_map(F, [I|Is]) ->
             Is
     end.
 
-get_conn_pids(Players) ->
-    [C || [C] <- ets:match(Players, {'_', '_', '$3'})].
-
 
 handle_tick(State) ->
     Now = tri_utils:ms(),
@@ -121,7 +118,7 @@ handle_tick(State) ->
     Bullets2 = add_bullets(Bullets1, NewBullets),
     {Bullets3, UpdateScores} = handle_collisions(TickPlayersData, Bullets2),
     case UpdateScores of
-        true -> tri_scores:send_update(get_conn_pids(State#state.players));
+        true -> tri_scores:send_update();
         false -> ok
     end,
     BulletsToSend = [{BulletId, Pos} ||

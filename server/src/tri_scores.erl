@@ -2,52 +2,68 @@
 
 -behaviour(gen_server).
 -export([init/1, handle_cast/2, terminate/2]).
--export([start_link/0, client_cmd/2, target_hit/2, send_update/1]).
+-export([start_link/0, client_cmd/2, add_player/3,
+         remove_player/1, target_hit/2, send_update/0]).
 
 % behaviour callbacks
 init(_Args) ->
-    Scores = dict:new(),
-    {ok, Scores}.
+    Data = dict:new(),
+    {ok, Data}.
 
-handle_cast({client_cmd, {Cmd, Args, ConnPid}}, Scores) ->
-    NewScores = handle_client_cmd(Cmd, Args, ConnPid, Scores),
-    {noreply, NewScores};
-handle_cast({target_hit, {TargetId, ShooterId}}, Scores) ->
-    NewScores = handle_target_hit(TargetId, ShooterId, Scores),
-    {noreply, NewScores};
-handle_cast({send_update, ConnPids}, Scores) ->
-    ToSend = [{scores, dict:to_list(Scores)}],
-    tri_controller:broadcast(ConnPids, 'scores.update', ToSend),
-    {noreply, Scores}.
+handle_cast({add_player, {PlayerId, Name, ConnPid}}, Data) ->
+    NewData = dict:store(PlayerId, {Name, ConnPid, 0}, Data),
+    update(NewData),
+    {noreply, NewData};
+handle_cast({remove_player, PlayerId}, Data) ->
+    NewData = dict:erase(PlayerId, Data),
+    update(NewData),
+    {noreply, NewData};
+handle_cast({client_cmd, {Cmd, Args, ConnPid}}, Data) ->
+    NewData = handle_client_cmd(Cmd, Args, ConnPid, Data),
+    {noreply, NewData};
+handle_cast({target_hit, {TargetId, ShooterId}}, Data) ->
+    NewData = handle_target_hit(TargetId, ShooterId, Data),
+    {noreply, NewData};
+handle_cast(send_update, Data) ->
+    update(Data),
+    {noreply, Data}.
 
 
-terminate(_Reason, _Scores) ->
+terminate(_Reason, _Data) ->
     ok.
 
 
 % internal functions
-handle_client_cmd(request_update, _Args, ConnPid, Scores) ->
-    ToSend = [{scores, dict:to_list(Scores)}],
+handle_client_cmd(request_update, _Args, ConnPid, Data) ->
+    ToSend = [{scores, [{Name, Score} ||
+                    {_K, {Name, _, Score}} <- dict:to_list(Data)]}],
     tri_controller:send(ConnPid, 'scores.update', ToSend),
-    Scores.
+    Data.
 
-handle_target_hit(TargetId, ShooterId, Scores1) ->
-    TargetScore = case dict:find(TargetId, Scores1) of
-        {ok, TValue} -> max(TValue - 1, 0);
-        error -> 0
-    end,
-    Scores2 = dict:store(TargetId, TargetScore, Scores1),
-    ShooterScore = case dict:find(ShooterId, Scores2) of
-        {ok, SValue} -> SValue + 1;
-        error -> 1
-    end,
-    Scores3 = dict:store(ShooterId, ShooterScore, Scores2),
-    Scores3.
+handle_target_hit(TargetId, ShooterId, Data1) ->
+    {TName, TConnPid, TScore} = dict:fetch(TargetId, Data1),
+    TargetData = {TName, TConnPid, max(TScore - 1, 0)},
+    Data2 = dict:store(TargetId, TargetData, Data1),
+    {SName, SConnPid, SScore} = dict:fetch(ShooterId, Data2),
+    ShooterData = {SName, SConnPid, SScore + 1},
+    dict:store(ShooterId, ShooterData, Data2).
+
+update(Data) ->
+    List = [V || {_K, V} <- dict:to_list(Data)],
+    ToSend = [{scores, [{Name, Score} || {Name, _, Score} <- List]}],
+    ConnPids = [C || {_, C, _} <- List],
+    tri_controller:broadcast(ConnPids, 'scores.update', ToSend).
 
 
 % external interface
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+
+add_player(PlayerId, Name, ConnPid) ->
+    gen_server:cast(?MODULE, {add_player, {PlayerId, Name, ConnPid}}).
+
+remove_player(PlayerId) ->
+    gen_server:cast(?MODULE, {remove_player, PlayerId}).
 
 client_cmd(Cmd, Args) ->
     gen_server:cast(?MODULE, {client_cmd, {Cmd, Args, self()}}).
@@ -55,8 +71,5 @@ client_cmd(Cmd, Args) ->
 target_hit(TargetId, ShooterId) ->
     gen_server:cast(?MODULE, {target_hit, {TargetId, ShooterId}}).
 
-send_update(ConnPids) ->
-    gen_server:cast(?MODULE, {send_update, ConnPids}).
-
-%TODO: delete scores of disconnected players
-%TODO: get player's names
+send_update() ->
+    gen_server:cast(?MODULE, send_update).
