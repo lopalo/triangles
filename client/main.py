@@ -2,11 +2,13 @@ import os
 import json
 import logging
 
+from time import time
 from kivy.app import App
 from kivy.core.window import Window
 from kivy.uix.widget import Widget
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
+from kivy.clock import Clock
 from kivy.properties import (
     ObjectProperty, NumericProperty,
     ReferenceListProperty)
@@ -15,6 +17,8 @@ from kivy.logger import Logger
 
 from world import World
 from controller import Controller
+
+PING_CHECK_PERIO = 1 # seconds
 
 
 class StartMenu(BoxLayout):
@@ -100,6 +104,18 @@ class Scores(BoxLayout):
         for (name, score), widget in zip(score_list, self._records):
             widget.text = "{}: {}".format(name, score)
 
+class Ping(Label):
+    _timestamp = None
+    ping = NumericProperty(0)
+
+    def send_ping(self, dt=None):
+        timestamp = int(time() * 1000)
+        Controller.send(cmd="ping", args=dict(timestamp=timestamp))
+
+    def handle(self, timestamp):
+        self.ping = int(time() * 1000)  - timestamp
+        Clock.schedule_once(self.send_ping, PING_CHECK_PERIO)
+
 
 class UI(Widget):
     pass
@@ -112,6 +128,8 @@ class GameWidget(Widget):
     def initialize(self, *args, **kwargs):
         World.activate(self, *args, **kwargs)
         Controller.add_handler('scores', self.ui.scores)
+        Controller.add_handler('ping', self.ui.ping)
+        self.ui.ping.send_ping()
 
 
 class MainWidget(Widget):

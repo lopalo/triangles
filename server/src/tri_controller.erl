@@ -17,6 +17,9 @@ handle([user, Cmd], Args, PlayerPid) ->
     tri_player:client_cmd(PlayerPid, Cmd, Args);
 handle([scores, Cmd], Args, _PlayerPid) ->
     tri_scores:client_cmd(Cmd, Args);
+handle([ping], Args, _PlayerPid) ->
+    Timestamp = dict:fetch(timestamp, Args),
+    send(self(), ping, [{timestamp, Timestamp}]);
 handle([echo], Args, _PlayerPid) ->
     Text = dict:fetch(text, Args),
     ReplyText = io_lib:format("Echo: ~s", [Text]),

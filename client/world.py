@@ -28,6 +28,7 @@ class _World(object):
         self._objects = {}
         self._last_tick = None
         self._tick = time()
+        self._initialized = False
 
     def activate(self, parent, name):
         Controller.add_handler('world', self)
@@ -113,6 +114,7 @@ class _World(object):
         world_pos = self.window_center - Vector(user_data['pos'])
         self.world_pos = world_pos
         self.handle_objects_info(objects)
+        self._initialized = True
         Controller.send(cmd='scores.request_update', args={})
 
     def handle_objects_info(self, objects):
@@ -122,6 +124,8 @@ class _World(object):
             self._add_object(ident, data)
 
     def handle_tick(self, objects, bullets):
+        if not self._initialized:
+            return
         self._tick = time()
         user_data = objects[self._uid]
         world_pos = self.window_center - Vector(user_data['pos'])

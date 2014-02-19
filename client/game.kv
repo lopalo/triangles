@@ -66,12 +66,24 @@ MainWidget:
     spacing: 0
     padding: 0
 
+<Ping@Label>:
+    opacity: .7
+    height: W.height / 8
+    width: W.width / 6
+    x: W.width - self.width
+    top: W.height
+    text: 'ping: {} ms'.format(self.ping)
+
+
 <UI>:
     scores: scores
+    ping: ping
     LeftControl
     RightControl
     Scores:
         id: scores
+    Ping:
+        id: ping
 
 <GameWidget>:
     ui: ui
