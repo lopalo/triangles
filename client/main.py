@@ -104,7 +104,7 @@ class Scores(BoxLayout):
         for (name, score), widget in zip(score_list, self._records):
             widget.text = "{}: {}".format(name, score)
 
-class Ping(Label):
+class Info(Label):
     _timestamp = None
     ping = NumericProperty(0)
 
@@ -115,6 +115,10 @@ class Ping(Label):
     def handle(self, timestamp):
         self.ping = int(time() * 1000)  - timestamp
         Clock.schedule_once(self.send_ping, PING_CHECK_PERIO)
+
+    @property
+    def fps(self):
+        return Clock.get_rfps()
 
 
 class UI(Widget):
@@ -128,8 +132,8 @@ class GameWidget(Widget):
     def initialize(self, *args, **kwargs):
         World.activate(self, *args, **kwargs)
         Controller.add_handler('scores', self.ui.scores)
-        Controller.add_handler('ping', self.ui.ping)
-        self.ui.ping.send_ping()
+        Controller.add_handler('ping', self.ui.info)
+        self.ui.info.send_ping()
 
 
 class MainWidget(Widget):
