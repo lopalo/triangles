@@ -1,0 +1,3 @@
+title=Triangles
+author=Vlad Lopalo
+orientation=landscape

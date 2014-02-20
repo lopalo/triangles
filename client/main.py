@@ -137,8 +137,9 @@ class MainWidget(Widget):
     start_menu = ObjectProperty(None)
     game_widget = ObjectProperty(None)
 
-    def connect(self, address, name):
+    def connect(self, address, name, fake_ping):
         self.remove_widget(self.start_menu)
+        Controller.set_fake_ping(int(fake_ping))
         Controller.connect(address, wait=True)
         self.game_widget = GameWidget()
         self.game_widget.initialize(name)

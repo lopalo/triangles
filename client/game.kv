@@ -15,16 +15,22 @@
     TextInput:
         id: address
         multiline: False
-        text: ''
+        text: 'ws://89.252.17.39:9000'
     Label:
         text: 'Name:'
     TextInput:
         id: user_name
         multiline: False
-        text: 'anonymous'
+        text: ''
+    Label:
+        text: 'Fake ping:'
+    TextInput:
+        id: fake_ping
+        multiline: False
+        text: '0'
     Button:
         text: 'Connect'
-        on_press: root.connect(address=address.text, name=user_name.text)
+        on_press: root.connect(address.text, user_name.text, fake_ping.text)
 
 MainWidget:
     start_menu: start_menu

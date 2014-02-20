@@ -4,7 +4,6 @@ from functools import wraps, partial
 from network import Connection
 
 UPDATE_PERIOD = 1. / 40.
-FAKE_PING = 0 # milliseconds
 
 
 class UserCommands(object):
@@ -39,16 +38,21 @@ class _Controller(object):
     def __init__(self):
         self._handlers = {}
         self._conn = None
+        self._fake_ping = 0
         self._callbacks = set() #stores weak-referenced callbacks
 
     def _delay(self, fun):
         callbacks = self._callbacks
         cb = lambda dt: callbacks.remove(cb) or fun()
         callbacks.add(cb)
-        Clock.schedule_once(cb, FAKE_PING / 1000. / 2)
+        Clock.schedule_once(cb, self._fake_ping / 1000. / 2)
+
+    def set_fake_ping(self, fake_ping):
+        # milliseconds
+        self._fake_ping = fake_ping
 
     def send(self, cmd, args):
-        if FAKE_PING:
+        if self._fake_ping:
             self._delay(partial(self._conn.send, cmd, args))
         else:
             self._conn.send(cmd, args)
@@ -88,7 +92,7 @@ class _Controller(object):
             if handler_name in handlers:
                 handler = handlers[handler_name]
                 meth = safe_call(getattr(handler, method_name))
-                if FAKE_PING:
+                if self._fake_ping:
                     self._delay(partial(meth, **args))
                 else:
                     meth(**args)
