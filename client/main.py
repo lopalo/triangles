@@ -208,7 +208,7 @@ if __name__ == '__main__':
     if 'TRI_START_ARGS' in os.environ:
         with open(os.environ['TRI_START_ARGS']) as f:
             start_args = json.load(f)
-    KeyBoard()
+    #KeyBoard() # for debugging
     GameApp(start_args=start_args).run()
 
 
