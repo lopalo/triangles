@@ -7,7 +7,7 @@
 
 
 -record(state, {players, bullets, last_update, tick_number=0}).
--record(bullet, {id, shooter_id, pos, angle}).
+-record(bullet, {id, shooter_id, pos, speed}).
 
 % behaviour callbacks
 init([]) ->
@@ -93,7 +93,7 @@ safe_map(F, [I|Is]) ->
         Value -> [Value|safe_map(F, Is)]
     catch
         exit:{noproc, _} ->
-            Is
+            safe_map(F, Is)
     end.
 
 
@@ -142,7 +142,7 @@ check_borders([X1, Y1], [W, H]) ->
 
 
 tick_player(DT, LevelSize, ReflFactor, [PlayerId, PlayerPid]) ->
-    {ok, Pos1, Angle, Fire} = tri_player:tick(PlayerPid, DT),
+    {ok, Pos1, Angle, BulletData} = tri_player:tick(PlayerPid, DT),
     {Pos2, TouchData} = check_borders(Pos1, LevelSize),
     case TouchData of
         none -> ok;
@@ -150,10 +150,6 @@ tick_player(DT, LevelSize, ReflFactor, [PlayerId, PlayerPid]) ->
             tri_player:touch_border(PlayerPid, Pos2, TouchData, ReflFactor)
     end,
     PlayerData = [{pos, Pos2}, {angle, Angle}],
-    BulletData = case Fire of
-        true -> {Pos2, Angle};
-        false -> none
-    end,
     {PlayerId, PlayerData, BulletData}.
 
 
@@ -161,15 +157,13 @@ add_bullets(Bullets, New) ->
     Bullets ++ [#bullet{id=bullet_id(),
                         shooter_id=PlayerId,
                         pos=Pos,
-                        angle=Angle} || {PlayerId, {Pos, Angle}} <- New].
+                        speed=Speed} ||
+                {PlayerId, {Pos, Speed}} <- New].
 
 
 tick_bullets(DT, [W, H], Bullets1) ->
-    {ok, BulletSpeed} = application:get_env(tri, bullet_speed),
-    D = BulletSpeed * DT,
-    Move = fun(#bullet{pos=[X, Y], angle=Angle} = Bullet) ->
-        [DX, DY] = tri_utils:vect_transform(D, Angle),
-        Bullet#bullet{pos=[trunc(X + DX), trunc(Y + DY)]}
+    Move = fun(#bullet{pos=[X, Y], speed=[SX, SY]} = Bullet) ->
+        Bullet#bullet{pos=[trunc(X + SX * DT), trunc(Y + SY * DT)]}
     end,
     Bullets2 = lists:map(Move, Bullets1),
     CheckBorders = fun

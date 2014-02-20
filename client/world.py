@@ -77,7 +77,7 @@ class _World(object):
             else:
                 return .00000001
 
-    def _add_object(self, ident, data=None, index=0):
+    def _add_object(self, ident, data=None, index=0, world_pos=None):
         type = data['type']
         if type == 'background':
             obj = Background(size=data['size'])
@@ -91,7 +91,7 @@ class _World(object):
         self._widget.add_widget(obj, index)
         if type in ('triangle', 'bullet'):
             pos = Vector(data['pos'])
-            pos += self.world_pos
+            pos += world_pos or self.world_pos
             obj.center = pos
         if type == 'triangle':
             obj.angle = data['angle']
@@ -180,7 +180,9 @@ class _World(object):
                 if bullet.hidden:
                     bullet.show()
             else:
-                bullet = self._add_object(ident, dict(type='bullet', pos=pos))
+                bullet = self._add_object(ident,
+                                          dict(type='bullet', pos=pos),
+                                          world_pos=new_world_pos)
 
         bullets = set(k for k, v in objects.items() if isinstance(v, Bullet))
         for ident in bullets - set(tick_bullets):

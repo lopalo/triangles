@@ -28,8 +28,8 @@ init([ConnPid, PlayerData]) ->
 
 handle_call({tick, DT}, _From, Player1) ->
     {{Pos, Angle}, Player2} = tick_move(DT, Player1),
-    {Fire, Player3} = tick_fire(Player2),
-    Resp = {ok, Pos, Angle, Fire},
+    {Bullet, Player3} = tick_fire(Player2),
+    Resp = {ok, Pos, Angle, Bullet},
     {reply, Resp, Player3};
 handle_call(get_client_info, _From,
         #player{name=Name, pos=Pos, angle=Angle} = Player) ->
@@ -104,7 +104,6 @@ tick_move(DT, #player{speed=Speed1, pos=Pos,
 
 
 tick_fire(Player) ->
-    %TODO: fix bullet's speed
     case Player#player.fire of
         false ->
             {false, Player};
@@ -114,9 +113,15 @@ tick_fire(Player) ->
             Now = tri_utils:ms(),
             if
                 (Now - LF) / 1000 < 1 / FR ->
-                    {false, Player};
+                    {none, Player};
                 true ->
-                    {true, Player#player{last_fire=Now}}
+                    [PSX, PSY] = Player#player.speed,
+                    {ok, BulletSpeed} = application:get_env(tri, bullet_speed),
+                    [BSX, BSY] = tri_utils:vect_transform(BulletSpeed,
+                                                Player#player.angle),
+                    Speed = [BSX + PSX, BSY + PSY],
+                    Bullet = {Player#player.pos, Speed},
+                    {Bullet, Player#player{last_fire=Now}}
             end
     end.
 
