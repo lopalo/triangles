@@ -3,8 +3,8 @@
 
 
 <StartMenu@BoxLayout>:
-    height: W.height / 2
-    width: W.width / 2
+    height: W.height / 1.5
+    width: W.width / 3
     center_x: W.width / 2
     center_y: W.height / 2
     orientation: 'vertical'
@@ -39,10 +39,10 @@ MainWidget:
         id: start_menu
 
 <LeftControl>:
-    center: W.height / 6, W.height / 6
+    center: W.width / 6, W.width / 6
     inner_x: self.center_x
     inner_y: self.center_y
-    outer_rad: W.height / 8
+    outer_rad: W.width / 10
     inner_rad: self.outer_rad / 2.5
     canvas:
         Color:
@@ -54,8 +54,8 @@ MainWidget:
             size: self.inner_rad * 2, self.inner_rad * 2
 
 <RightControl>:
-    center: W.width - W.height / 6, W.height / 6
-    radius: W.height / 8
+    center: W.width - W.width / 6, W.width / 6
+    radius: W.width / 10
     canvas:
         Color:
             rgb: 1, 1, 1
