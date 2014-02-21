@@ -35,6 +35,11 @@ class LeftControl(Widget):
     inner_rad = NumericProperty(0)
     pressed = False
 
+    def is_valid_touch(self, touch):
+        if not self.pressed or touch.pos[0] > Window.width / 2:
+            return False
+        return True
+
     def on_touch_down(self, touch):
         center_vect = Vector(self.center)
         vect = Vector(touch.pos) - center_vect
@@ -45,7 +50,7 @@ class LeftControl(Widget):
         self.move_vector(vect)
 
     def on_touch_move(self, touch):
-        if not self.pressed:
+        if not self.is_valid_touch(touch):
             return
         center_vect = Vector(self.center)
         vect = Vector(touch.pos) - center_vect
@@ -55,7 +60,7 @@ class LeftControl(Widget):
         self.move_vector(vect)
 
     def on_touch_up(self, touch):
-        if not self.pressed:
+        if not self.is_valid_touch(touch):
             return
         self.pressed = False
         self.inner_pos = self.center
@@ -140,13 +145,17 @@ class MainWidget(Widget):
 
     start_menu = ObjectProperty(None)
     game_widget = ObjectProperty(None)
+    user_name = None
 
     def connect(self, address, name, fake_ping=0):
-        self.remove_widget(self.start_menu)
+        self._name = name
         Controller.set_fake_ping(int(fake_ping))
-        Controller.connect(address, wait=True)
+        Controller.connect(address, on_connect=self.on_connect)
+
+    def on_connect(self):
+        self.remove_widget(self.start_menu)
         self.game_widget = GameWidget()
-        self.game_widget.initialize(name)
+        self.game_widget.initialize(self._name)
         self.add_widget(self.game_widget)
 
 

@@ -40,6 +40,7 @@ class _Controller(object):
         self._conn = None
         self._fake_ping = 0
         self._callbacks = set() #stores weak-referenced callbacks
+        self._on_connect = None
 
     def _delay(self, fun):
         callbacks = self._callbacks
@@ -64,9 +65,14 @@ class _Controller(object):
     def deactivate(self):
         Clock.unschedule(self.check_inbox)
 
-    def connect(self, address, **kwargs):
-        self._conn = Connection(address)
-        self._conn.connect(**kwargs)
+    def connect(self, address, on_connect=None):
+        self._on_connect = on_connect
+        Connection.connect(address)
+
+    def on_connect(self, conn):
+        self._conn = conn
+        if self._on_connect is not None:
+            self._on_connect()
 
     def add_handler(self, name, obj):
         self._handlers[name] = obj
