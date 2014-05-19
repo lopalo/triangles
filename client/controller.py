@@ -1,9 +1,11 @@
+from random import randint
 from kivy.clock import Clock
 from kivy.logger import Logger as log
 from functools import wraps, partial
 from network import Connection
 
 UPDATE_PERIOD = 1. / 40.
+PING_FREEZE_PERIOD = 4
 
 
 class UserCommands(object):
@@ -46,7 +48,11 @@ class _Controller(object):
         callbacks = self._callbacks
         cb = lambda dt: callbacks.remove(cb) or fun()
         callbacks.add(cb)
-        Clock.schedule_once(cb, self._fake_ping / 1000. / 2)
+        if randint(1, PING_FREEZE_PERIOD) == 1:
+            ping = self._fake_ping / 1000. / 2
+        else:
+            ping = 0
+        Clock.schedule_once(cb, ping)
 
     def set_fake_ping(self, fake_ping):
         # milliseconds
